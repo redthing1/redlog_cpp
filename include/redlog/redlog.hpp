@@ -25,7 +25,7 @@
 
 // compile-time log level filtering
 #ifndef REDLOG_MIN_LEVEL
-    #define REDLOG_MIN_LEVEL 3  // info level
+    #define REDLOG_MIN_LEVEL 8  // annoying level (allow all levels by default)
 #endif
 
 namespace redlog {
@@ -683,8 +683,16 @@ public:
 private:
     // check if level should be logged
     bool should_log(level l) const {
-        return static_cast<int>(l) <= REDLOG_MIN_LEVEL && 
-               l <= detail::config::instance().min_level();
+        int msg_level = static_cast<int>(l);
+        int runtime_level = static_cast<int>(detail::config::instance().min_level());
+        
+        // compile-time filtering: if message level is above compile-time limit, filter it
+        if (msg_level > REDLOG_MIN_LEVEL) {
+            return false;
+        }
+        
+        // runtime filtering: if message level is above runtime limit, filter it  
+        return msg_level <= runtime_level;
     }
     
     // core logging implementation

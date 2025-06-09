@@ -11,3 +11,7 @@ target_link_libraries(advanced_example PRIVATE redlog::redlog)
 # Performance example
 add_executable(performance_example performance_example.cpp)
 target_link_libraries(performance_example PRIVATE redlog::redlog)
+
+# Themes and formatting showcase
+add_executable(themes_and_formatting themes_and_formatting.cpp)
+target_link_libraries(themes_and_formatting PRIVATE redlog::redlog)

@@ -511,6 +511,26 @@ void test_level_filtering() {
     
     set_level(level::info);
     assert(get_level() == level::info);
+    
+    // Test that filtering works by verifying filtered messages are very fast
+    set_level(level::warn);  // Only show critical, error, warn
+    auto log = get_logger("filter_test");
+    
+    // Test that filtered messages (info, verbose, debug) are very fast
+    auto start = std::chrono::steady_clock::now();
+    for (int i = 0; i < 1000; ++i) {
+        log.info("filtered message");
+        log.verbose("filtered message");
+        log.debug("filtered message");
+    }
+    auto end = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    
+    // Filtered messages should be very fast (less than 100 microseconds for 3000 calls)
+    assert(duration.count() < 100);
+    
+    // Restore level for other tests
+    set_level(level::info);
 }
 
 void test_theme_system() {

@@ -168,15 +168,31 @@ void worker_thread(int thread_id) {
 int main() {
     using namespace redlog;
     
-    std::cout << "=== Advanced redlog Features Demo ===\n\n";
-    
-    // Set to maximum verbosity to see all messages initially
-    set_level(level::annoying);
+    std::cout << "=== redlog Advanced Example ===" << std::endl;
+    std::cout << "Demonstrating complex scenarios, threading, performance, and real-world patterns" << std::endl;
     
     auto log = get_logger("advanced");
-    log.info("Advanced example started - demonstrating all verbosity levels");
     
-    // Demonstrate all log levels with realistic scenarios
+    // Start with info level to show basic scenarios
+    std::cout << "\n--- Starting with INFO level ---" << std::endl;
+    std::cout << "Current level: " << level_name(get_level()) << " (" << static_cast<int>(get_level()) << ")" << std::endl;
+    
+    log.info("Advanced example started - demonstrating complex patterns");
+    
+    // Custom type logging
+    custom_object obj{123, "test_object"};
+    log.info("Custom object logging", redlog::field("object", obj));
+    
+    // Using the general fmt function for string formatting
+    std::string status_msg = fmt("System ready: %d cores, %dMB RAM, %.1f%% disk free", 8, 16384, 67.3);
+    log.info("System status", redlog::field("status", status_msg));
+    
+    // Enable debug level to show detailed internal operations
+    std::cout << "\n--- Enabling DEBUG level for detailed logging ---" << std::endl;
+    set_level(level::debug);
+    std::cout << "Current level: " << level_name(get_level()) << " (" << static_cast<int>(get_level()) << ")" << std::endl;
+    
+    // Now show all relevant log levels with realistic scenarios
     log.critical("System overload detected - immediate intervention required");
     log.error("Database connection lost - attempting reconnection");
     log.warn("High memory usage detected - consider scaling");
@@ -184,28 +200,25 @@ int main() {
     log.verbose("Detailed request processing information");
     log.trace("Function call trace: process_request() entered");
     log.debug("Variable state: connection_count=42, active_sessions=15");
-    log.pedantic("Memory allocation details: 1024 bytes allocated at 0x7fff");
-    log.annoying("Micro-optimization: loop iteration 573 of 10000");
     
-    // Custom type logging
-    custom_object obj{123, "test_object"};
-    log.info("Custom object logging", redlog::field("object", obj));
-    
-    // Printf-style formatting demonstrations
+    // Printf-style formatting demonstrations  
     log.info_f("Server stats: %d connections, %.1f%% CPU usage", 42, 85.7);
     log.debug_f("Memory address: %p, hex value: 0x%x", &obj, 0xDEADBEEF);
     log.verbose_f("Process ID: %d, thread count: %d", 1234, 8);
     log.trace_f("Precision test: %.0f, %.2f, %.5f", 3.14159, 3.14159, 3.14159);
     
-    // Using the general fmt function for string formatting
-    std::string status_msg = fmt("System ready: %d cores, %dMB RAM, %.1f%% disk free", 8, 16384, 67.3);
-    log.info("System status", redlog::field("status", status_msg));
+    // Enable maximum verbosity to show extreme debugging levels
+    std::cout << "\n--- Enabling ANNOYING level (maximum verbosity) ---" << std::endl;
+    set_level(level::annoying);
+    std::cout << "Current level: " << level_name(get_level()) << " (shows everything)" << std::endl;
     
-    // Demonstrate verbosity filtering in action
-    log.info("\n=== Demonstrating Level Filtering ===");
+    log.pedantic("Memory allocation details: 1024 bytes allocated at 0x7fff");
+    log.annoying("Micro-optimization: loop iteration 573 of 10000");
     
+    // Demonstrate level filtering effects
+    std::cout << "\n--- Demonstrating level filtering effects ---" << std::endl;
+    std::cout << "Setting to WARN level (restrictive)" << std::endl;
     set_level(level::warn);
-    log.info("Changing to WARN level - info and below should disappear");
     
     log.critical("Critical: Still visible at WARN level");
     log.error("Error: Still visible at WARN level");
@@ -214,11 +227,13 @@ int main() {
     log.verbose("Verbose: Should not appear at WARN level");
     log.debug("Debug: Should not appear at WARN level");
     
-    set_level(level::verbose);  // Reset for rest of demo
-    log.info("Reset to VERBOSE level for remainder of demo");
+    // Reset to verbose for detailed demo
+    std::cout << "\n--- Setting to VERBOSE level for detailed operations ---" << std::endl;
+    set_level(level::verbose);
+    std::cout << "Current level: " << level_name(get_level()) << " (" << static_cast<int>(get_level()) << ")" << std::endl;
     
     // Theme configuration
-    log.info("\n=== Theme Configuration ===");
+    std::cout << "\n--- Theme configuration ---" << std::endl;
     log.info("Testing default theme with colors");
     
     // Switch to plain theme for CI environments
@@ -228,6 +243,7 @@ int main() {
     }
     
     // HTTP request simulation
+    std::cout << "\n--- HTTP request simulation with scoped logging ---" << std::endl;
     std::vector<http_request> requests = {
         {"GET", "/api/users", "192.168.1.100", 1001},
         {"POST", "/api/users", "192.168.1.101", 1002},
@@ -240,7 +256,7 @@ int main() {
     }
     
     // Thread safety demonstration with different verbosity per thread
-    log.info("\n=== Thread Safety Demonstration ===");
+    std::cout << "\n--- Thread safety demonstration ---" << std::endl;
     log.verbose("Starting multi-threaded logging with different verbosity levels");
     
     std::vector<std::thread> threads;
@@ -253,13 +269,13 @@ int main() {
     }
     
     // Performance comparison at different verbosity levels
-    log.info("\n=== Performance Impact of Verbosity Levels ===");
+    std::cout << "\n--- Performance impact of verbosity levels ---" << std::endl;
     log.verbose("Testing performance impact of level filtering");
     
     const int iterations = 1000;  // Smaller number for demo purposes
     
     // Test with very restrictive filtering (only critical/error)
-    log.info("Testing with ERROR level (most restrictive)");
+    std::cout << "Testing with ERROR level (most restrictive)" << std::endl;
     set_level(level::error);
     auto start = std::chrono::steady_clock::now();
     
@@ -272,7 +288,7 @@ int main() {
     auto restrictive_time = std::chrono::steady_clock::now() - start;
     
     // Test with moderate filtering (info and above)
-    log.error("Testing with INFO level (moderate filtering)");
+    std::cout << "Testing with INFO level (moderate filtering)" << std::endl;
     set_level(level::info);
     start = std::chrono::steady_clock::now();
     
@@ -285,7 +301,7 @@ int main() {
     auto moderate_time = std::chrono::steady_clock::now() - start;
     
     // Test with maximum verbosity (all messages enabled)
-    log.info("Testing with ANNOYING level (maximum verbosity)");
+    std::cout << "Testing with ANNOYING level (maximum verbosity)" << std::endl;
     set_level(level::annoying);
     start = std::chrono::steady_clock::now();
     
@@ -298,7 +314,9 @@ int main() {
     auto verbose_time = std::chrono::steady_clock::now() - start;
     
     // Reset to info level for final summary
+    std::cout << "\n--- Performance results ---" << std::endl;
     set_level(level::info);
+    std::cout << "Current level: " << level_name(get_level()) << " (for results display)" << std::endl;
     
     log.info("Performance comparison completed",
              redlog::field("iterations", iterations),
@@ -306,11 +324,13 @@ int main() {
              redlog::field("moderate_time_us", std::chrono::duration_cast<std::chrono::microseconds>(moderate_time).count()),
              redlog::field("verbose_time_us", std::chrono::duration_cast<std::chrono::microseconds>(verbose_time).count()));
     
-    log.verbose("Performance analysis shows significant speedup with level filtering");
-    log.debug("Restrictive filtering provides best performance for production systems");
-    log.trace("Maximum verbosity useful for development and debugging phases");
+    log.info("Performance analysis shows significant speedup with level filtering");
     
-    log.info("Advanced example completed");
+    std::cout << "\n=== Advanced example completed! ===" << std::endl;
+    std::cout << "Key takeaways:" << std::endl;
+    std::cout << "- Level filtering provides major performance benefits" << std::endl;
+    std::cout << "- Scoped loggers enable contextual logging" << std::endl;
+    std::cout << "- Thread-safe by design for concurrent applications" << std::endl;
     
     return 0;
 }
