@@ -1,7 +1,10 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <functional>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -180,6 +183,185 @@ std::string stringify(T&& value) {
     else {
         return "[unprintable]";
     }
+}
+
+/**
+ * Format a single argument according to its format specifier.
+ */
+template<typename T>
+void format_argument(std::ostringstream& oss, T&& value, const std::string& format_spec) {
+    using decay_t = std::decay_t<T>;
+    
+    if (format_spec.length() < 2) {
+        oss << stringify(std::forward<T>(value));
+        return;
+    }
+    
+    char format_char = format_spec.back();
+    
+    // Handle different format specifiers
+    switch (format_char) {
+        case 'd':
+        case 'i':
+            if constexpr (std::is_arithmetic_v<decay_t>) {
+                oss << static_cast<long long>(value);
+            } else {
+                oss << stringify(std::forward<T>(value));
+            }
+            break;
+            
+        case 'x':
+            if constexpr (std::is_arithmetic_v<decay_t>) {
+                oss << std::hex << std::nouppercase << static_cast<unsigned long long>(value) << std::dec;
+            } else {
+                oss << stringify(std::forward<T>(value));
+            }
+            break;
+            
+        case 'X':
+            if constexpr (std::is_arithmetic_v<decay_t>) {
+                oss << std::hex << std::uppercase << static_cast<unsigned long long>(value) << std::dec;
+            } else {
+                oss << stringify(std::forward<T>(value));
+            }
+            break;
+            
+        case 'o':
+            if constexpr (std::is_arithmetic_v<decay_t>) {
+                oss << std::oct << static_cast<unsigned long long>(value) << std::dec;
+            } else {
+                oss << stringify(std::forward<T>(value));
+            }
+            break;
+            
+        case 'f':
+        case 'F':
+            if constexpr (std::is_arithmetic_v<decay_t>) {
+                // Check for precision specifier like %.2f
+                std::size_t dot_pos = format_spec.find('.');
+                if (dot_pos != std::string::npos && dot_pos + 1 < format_spec.length() - 1) {
+                    std::string precision_str = format_spec.substr(dot_pos + 1, format_spec.length() - dot_pos - 2);
+                    if (!precision_str.empty() && std::all_of(precision_str.begin(), precision_str.end(), ::isdigit)) {
+                        int precision = std::stoi(precision_str);
+                        oss << std::fixed << std::setprecision(precision) << static_cast<double>(value);
+                        oss.unsetf(std::ios::fixed);
+                        break;
+                    }
+                }
+                oss << static_cast<double>(value);
+            } else {
+                oss << stringify(std::forward<T>(value));
+            }
+            break;
+            
+        case 'e':
+        case 'E':
+            if constexpr (std::is_arithmetic_v<decay_t>) {
+                oss << std::scientific;
+                if (format_char == 'E') oss << std::uppercase;
+                oss << static_cast<double>(value);
+                oss.unsetf(std::ios::scientific);
+            } else {
+                oss << stringify(std::forward<T>(value));
+            }
+            break;
+            
+        case 'c':
+            if constexpr (std::is_arithmetic_v<decay_t>) {
+                oss << static_cast<char>(value);
+            } else {
+                oss << stringify(std::forward<T>(value));
+            }
+            break;
+            
+        case 's':
+        default:
+            oss << stringify(std::forward<T>(value));
+            break;
+    }
+}
+
+/**
+ * Stream-based printf implementation.
+ * 
+ * Parses format specifiers and applies appropriate stream formatting.
+ * Uses stringstream to handle both basic and custom types seamlessly.
+ */
+template<typename... Args>
+std::string stream_printf(const char* format, Args&&... args) {
+    std::ostringstream result;
+    std::string fmt_str(format);
+    std::size_t pos = 0;
+    std::size_t arg_index = 0;
+    
+    // Convert all arguments to a variant-like storage for processing
+    std::vector<std::function<void(std::ostringstream&, const std::string&)>> arg_formatters;
+    (arg_formatters.emplace_back([arg = std::forward<Args>(args)](std::ostringstream& oss, const std::string& spec) {
+        format_argument(oss, arg, spec);
+    }), ...);
+    
+    while (pos < fmt_str.length()) {
+        std::size_t percent_pos = fmt_str.find('%', pos);
+        
+        if (percent_pos == std::string::npos) {
+            // No more format specifiers, append rest of string
+            result << fmt_str.substr(pos);
+            break;
+        }
+        
+        // Append text before format specifier
+        result << fmt_str.substr(pos, percent_pos - pos);
+        
+        // Parse format specifier
+        if (percent_pos + 1 >= fmt_str.length()) {
+            result << '%';  // Trailing % at end
+            break;
+        }
+        
+        char next_char = fmt_str[percent_pos + 1];
+        if (next_char == '%') {
+            result << '%';  // Escaped %%
+            pos = percent_pos + 2;
+            continue;
+        }
+        
+        // Find end of format specifier
+        std::size_t spec_end = percent_pos + 1;
+        std::string spec_chars = "diouxXeEfFgGaAcspn";
+        
+        // Look for precision specifier like %.2f
+        if (next_char == '.') {
+            spec_end++;
+            while (spec_end < fmt_str.length() && std::isdigit(fmt_str[spec_end])) {
+                spec_end++;
+            }
+        }
+        
+        // Find the actual format character
+        while (spec_end < fmt_str.length() && 
+               spec_chars.find(fmt_str[spec_end]) == std::string::npos) {
+            spec_end++;
+        }
+        
+        if (spec_end >= fmt_str.length()) {
+            result << fmt_str.substr(percent_pos);  // Invalid format, copy as-is
+            break;
+        }
+        
+        spec_end++;  // Include the format character
+        
+        if (arg_index < arg_formatters.size()) {
+            std::string format_spec = fmt_str.substr(percent_pos, spec_end - percent_pos);
+            arg_formatters[arg_index](result, format_spec);
+            arg_index++;
+        } else {
+            result << fmt_str.substr(percent_pos, spec_end - percent_pos);  // No more args
+        }
+        
+        pos = spec_end;
+    }
+    
+    return result.str();
 }
 
 // global configuration
@@ -675,34 +857,26 @@ public:
     
 private:
     /**
-     * Simple printf-style string formatting.
+     * Stream-based printf-style formatting.
      * 
-     * Converts all arguments to strings, then replaces %s placeholders
-     * in order. This gives us universal %s support for any type that
-     * can be stringified.
+     * Supports standard format specifiers (%d, %f, %s, %x, etc.) using stringstream
+     * formatting. Custom types work via operator<< just like stringify().
+     * 
+     * Format specifiers supported:
+     * - %d, %i: integers
+     * - %f, %F: floating point (default precision)
+     * - %.nf: floating point with n decimal places  
+     * - %x, %X: hexadecimal (lowercase/uppercase)
+     * - %o: octal
+     * - %s: strings and any type with operator<<
+     * - %c: characters
      */
     template<typename... Args>
     std::string format_string(const char* format, Args&&... args) const {
-        if constexpr (sizeof...(args) == 0) {
-            return std::string(format);
-        } else {
-            // convert all arguments to strings
-            std::vector<std::string> string_args = {
-                detail::stringify(std::forward<Args>(args))...
-            };
-            
-            std::string result(format);
-            std::size_t arg_index = 0;
-            std::size_t pos = 0;
-            
-            // replace %s with stringified arguments
-            while ((pos = result.find("%s", pos)) != std::string::npos && arg_index < string_args.size()) {
-                result.replace(pos, 2, string_args[arg_index]);
-                pos += string_args[arg_index].length();
-                ++arg_index;
-            }
-            
-            return result;
+        try {
+            return detail::stream_printf(format, std::forward<Args>(args)...);
+        } catch (...) {
+            return "[printf_format_error]";
         }
     }
 };
@@ -746,6 +920,32 @@ inline theme get_theme() {
  */
 inline logger get_logger(std::string_view name = "") {
     return logger(name);
+}
+
+/**
+ * general-purpose string formatting using stream-based printf.
+ * 
+ * supports standard format specifiers (%d, %f, %s, %x, etc.) using stringstream
+ * formatting. custom types work via operator<< just like stringify().
+ * 
+ * format specifiers supported:
+ * - %d, %i: integers
+ * - %f, %F: floating point (default precision)
+ * - %.nf: floating point with n decimal places  
+ * - %x, %X: hexadecimal (lowercase/uppercase)
+ * - %o: octal
+ * - %s: strings and any type with operator<<
+ * - %c: characters
+ * 
+ * example: std::string msg = redlog::fmt("User %s has %d points (%.1f%%)", name, score, percentage);
+ */
+template<typename... Args>
+std::string fmt(const char* format, Args&&... args) {
+    try {
+        return detail::stream_printf(format, std::forward<Args>(args)...);
+    } catch (...) {
+        return "[format_error]";
+    }
 }
 
 } // namespace redlog
