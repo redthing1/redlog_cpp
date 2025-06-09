@@ -98,6 +98,25 @@ struct test_object {
     }
 };
 
+// helper function to strip ansi color codes for testing
+std::string strip_ansi_colors(const std::string& input) {
+    std::string result;
+    bool in_escape = false;
+    
+    for (size_t i = 0; i < input.length(); ++i) {
+        if (input[i] == '\033' && i + 1 < input.length() && input[i + 1] == '[') {
+            in_escape = true;
+            ++i; // skip the '['
+        } else if (in_escape && input[i] == 'm') {
+            in_escape = false;
+        } else if (!in_escape) {
+            result += input[i];
+        }
+    }
+    
+    return result;
+}
+
 void test_basic_logging() {
     using namespace redlog;
     
@@ -517,6 +536,9 @@ void test_theme_system() {
     theme retrieved_theme = get_theme();
     assert(retrieved_theme.error_color == color::bright_red);
     assert(retrieved_theme.source_width == 20);
+    
+    // Restore original theme at the end to not affect other tests
+    set_theme(original_theme);
 }
 
 void test_formatter_functionality() {
@@ -541,8 +563,11 @@ void test_formatter_functionality() {
     log_entry entry_with_fields(level::error, "error message", "error_source", std::move(fields));
     std::string formatted_with_fields = formatter.format(entry_with_fields);
     
-    assert(formatted_with_fields.find("key1=value1") != std::string::npos);
-    assert(formatted_with_fields.find("key2=42") != std::string::npos);
+    // strip ansi color codes before checking for field content
+    std::string clean_output = strip_ansi_colors(formatted_with_fields);
+
+    assert(clean_output.find("key1=value1") != std::string::npos);
+    assert(clean_output.find("key2=42") != std::string::npos);
 }
 
 void test_stringification() {
