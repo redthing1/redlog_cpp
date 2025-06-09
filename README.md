@@ -1,7 +1,7 @@
 
 # redlog
 
-modern c++ header-only logging library
+a modern c++ header-only logging library
 
 ## features
 
@@ -30,7 +30,7 @@ int main() {
 }
 ```
 
-## build
+## build examples
 
 ```bash
 cmake -B build
@@ -124,13 +124,6 @@ redlog is header-only with zero dependencies. simply:
 2. include in your source files  
 3. compile with c++17 or later
 
-## examples
-
-see `examples/` directory for complete usage examples:
-- `basic_example.cpp` - fundamental features
-- `advanced_example.cpp` - real-world patterns  
-- `performance_example.cpp` - benchmarking
-
 ## testing
 
 ```bash
@@ -138,7 +131,3 @@ cmake -B build -DREDLOG_BUILD_TESTS=ON
 cmake --build build --parallel
 ./build/tests/redlog_tests
 ```
-
-## license
-
-this project is provided as-is for educational and demonstration purposes.
