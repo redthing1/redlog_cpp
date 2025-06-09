@@ -98,16 +98,31 @@ redlog::set_theme(redlog::themes::plain);
 
 ## integration
 
-### cmake
+### cmake project
+
+add redlog as a subdirectory to your cmake project:
 
 ```cmake
-find_package(redlog REQUIRED)
+add_subdirectory(redlog)
 target_link_libraries(your_target PRIVATE redlog::redlog)
 ```
 
-### single header
+### header-only
 
-copy `include/redlog/redlog.hpp` to your project and include it directly.
+copy `include/redlog/redlog.hpp` to your project and include it directly:
+
+```cpp
+#include "redlog.hpp"
+// ready to use - no linking required
+```
+
+### consume
+
+redlog is header-only with zero dependencies. simply:
+
+1. copy the header file or add as git submodule
+2. include in your source files  
+3. compile with c++17 or later
 
 ## examples
 
