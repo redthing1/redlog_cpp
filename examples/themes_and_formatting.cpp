@@ -416,6 +416,7 @@ struct server_stats {
 };
 
 void demonstrate_default_theme() {
+    std::cout << "\n=== Default Theme ===" << std::endl;
     
     auto log = redlog::get_logger("default");
     
@@ -440,6 +441,7 @@ void demonstrate_default_theme() {
 }
 
 void demonstrate_plain_theme() {
+    std::cout << "\n=== Plain Theme ===" << std::endl;
     
     // Switch to plain theme
     redlog::theme original_theme = redlog::get_theme();
@@ -463,6 +465,7 @@ void demonstrate_plain_theme() {
 }
 
 void demonstrate_custom_theme() {
+    std::cout << "\n=== Custom Theme ===" << std::endl;
     
     // Create a custom high-contrast theme
     redlog::theme high_contrast = redlog::themes::default_theme;
@@ -505,6 +508,7 @@ void demonstrate_custom_theme() {
 }
 
 void demonstrate_comprehensive_themes() {
+    std::cout << "\n=== Theme Demonstrations ===" << std::endl;
     
     // Store original theme
     redlog::theme original_theme = redlog::get_theme();
@@ -521,18 +525,22 @@ void demonstrate_comprehensive_themes() {
     };
     
     // Cyberpunk theme demonstration
+    std::cout << "\n--- Cyberpunk Theme ---" << std::endl;
     redlog::set_theme(create_cyberpunk_theme());
     generate_theme_samples("cyberpunk");
     
     // Retro green theme demonstration
+    std::cout << "\n--- Retro Green Theme ---" << std::endl;
     redlog::set_theme(create_retro_green_theme());
     generate_theme_samples("retro");
     
     // Accessibility theme demonstration
+    std::cout << "\n--- Accessibility Theme ---" << std::endl;
     redlog::set_theme(create_accessibility_theme());
     generate_theme_samples("accessible");
     
     // Monochrome theme demonstration
+    std::cout << "\n--- Monochrome Theme ---" << std::endl;
     redlog::set_theme(create_monochrome_theme());
     generate_theme_samples("production");
     
@@ -541,6 +549,7 @@ void demonstrate_comprehensive_themes() {
 }
 
 void demonstrate_comprehensive_formatters() {
+    std::cout << "\n=== Formatter Demonstrations ===" << std::endl;
     
     // Sample data for all formatters
     const auto generate_formatter_samples = [](redlog::logger& logger, const std::string& name) {
@@ -563,57 +572,66 @@ void demonstrate_comprehensive_formatters() {
     };
     
     // Timestamped formatter demonstration
+    std::cout << "\n--- Timestamped Formatter ---" << std::endl;
     {
         auto string_sink_ptr = std::make_shared<string_sink>();
         auto formatter_ptr = std::make_shared<timestamped_formatter>();
         redlog::logger logger("timestamps", formatter_ptr, string_sink_ptr);
         
         generate_formatter_samples(logger, "timestamped");
+        std::cout << string_sink_ptr->get_output();
     }
     
     // Syslog formatter demonstration
+    std::cout << "\n--- Syslog Formatter ---" << std::endl;
     {
         auto string_sink_ptr = std::make_shared<string_sink>();
         auto formatter_ptr = std::make_shared<syslog_formatter>();
         redlog::logger logger("syslog", formatter_ptr, string_sink_ptr);
         
         generate_formatter_samples(logger, "syslog");
+        std::cout << string_sink_ptr->get_output();
     }
     
     // Debug formatter demonstration
+    std::cout << "\n--- Debug Formatter ---" << std::endl;
     {
         auto string_sink_ptr = std::make_shared<string_sink>();
         auto formatter_ptr = std::make_shared<debug_formatter>();
         redlog::logger logger("debug", formatter_ptr, string_sink_ptr);
         
         generate_formatter_samples(logger, "debug");
+        std::cout << string_sink_ptr->get_output();
     }
     
     // Minimal formatter demonstration
+    std::cout << "\n--- Minimal Formatter ---" << std::endl;
     {
         auto string_sink_ptr = std::make_shared<string_sink>();
         auto formatter_ptr = std::make_shared<minimal_formatter>();
         redlog::logger logger("minimal", formatter_ptr, string_sink_ptr);
         
         generate_formatter_samples(logger, "minimal");
+        std::cout << string_sink_ptr->get_output();
     }
     
     // Structured formatter demonstration
+    std::cout << "\n--- Structured Formatter ---" << std::endl;
     {
         auto string_sink_ptr = std::make_shared<string_sink>();
         auto formatter_ptr = std::make_shared<structured_formatter>();
         redlog::logger logger("structured", formatter_ptr, string_sink_ptr);
         
         generate_formatter_samples(logger, "structured");
+        std::cout << string_sink_ptr->get_output();
     }
 }
 
 void demonstrate_advanced_custom_integration() {
     std::cout << "\n=== Advanced Custom Integration ===" << std::endl;
-    std::cout << "Real-world scenarios combining custom themes, formatters, and sinks" << std::endl;
     
     // Scenario 1: Development environment with debug formatter and cyberpunk theme
-    std::cout << "\n--- Development Environment Setup ---" << std::endl;
+    std::cout << "\n--- Development Environment ---" << std::endl;
     {
         auto string_sink_ptr = std::make_shared<string_sink>();
         auto debug_formatter_ptr = std::make_shared<debug_formatter>(create_cyberpunk_theme());
@@ -624,11 +642,11 @@ void demonstrate_advanced_custom_integration() {
         dev_logger.warn("Using development database", redlog::field("db_host", "localhost"));
         dev_logger.info("Server ready", redlog::field("port", 3000), redlog::field("mode", "development"));
         
-        std::cout << "Development logs with debug formatter + cyberpunk theme:" << std::endl;
+        std::cout << string_sink_ptr->get_output();
     }
     
     // Scenario 2: Production environment with syslog formatter and monochrome theme
-    std::cout << "\n--- Production Environment Setup ---" << std::endl;
+    std::cout << "\n--- Production Environment ---" << std::endl;
     {
         auto string_sink_ptr = std::make_shared<string_sink>();
         auto syslog_formatter_ptr = std::make_shared<syslog_formatter>();
@@ -639,11 +657,11 @@ void demonstrate_advanced_custom_integration() {
         prod_logger.warn("High load detected", redlog::field("cpu_percent", 85), redlog::field("memory_percent", 78));
         prod_logger.error("Database query timeout", redlog::field("query_id", "q_789"), redlog::field("duration_ms", 5000));
         
-        std::cout << "Production logs with syslog formatter:" << std::endl;
+        std::cout << string_sink_ptr->get_output();
     }
     
     // Scenario 3: Monitoring/Analytics with structured formatter
-    std::cout << "\n--- Analytics/Monitoring Environment Setup ---" << std::endl;
+    std::cout << "\n--- Analytics Environment ---" << std::endl;
     {
         auto string_sink_ptr = std::make_shared<string_sink>();
         auto structured_formatter_ptr = std::make_shared<structured_formatter>();
@@ -668,7 +686,7 @@ void demonstrate_advanced_custom_integration() {
                             redlog::field("requests_per_minute", 1000),
                             redlog::field("limit", 500));
         
-        std::cout << "Analytics logs ready for log aggregation systems:" << std::endl;
+        std::cout << string_sink_ptr->get_output();
     }
 }
 
@@ -692,7 +710,7 @@ void demonstrate_custom_formatters() {
                           redlog::field("request_id", "req_123"), 
                           redlog::field("duration", "45ms"));
         
-        std::cout << "Compact format output:" << std::endl;
+        std::cout << string_sink_ptr->get_output();
     }
     
     // Demonstrate JSON formatter with custom sink
@@ -708,7 +726,7 @@ void demonstrate_custom_formatters() {
                        redlog::field("threshold", "85"),
                        redlog::field("host", "web-01"));
         
-        std::cout << "JSON format output:" << std::endl;
+        std::cout << string_sink_ptr->get_output();
     }
     
     // Standard formatter for comparison
@@ -897,6 +915,7 @@ void demonstrate_performance_comparison() {
 }
 
 int main() {
+    std::cout << "=== Themes and Formatting Demonstration ===" << std::endl;
     
     // Set initial level to show most messages
     redlog::set_level(redlog::level::debug);
