@@ -280,9 +280,11 @@ int main() {
     auto start = std::chrono::steady_clock::now();
     
     for (int i = 0; i < iterations; ++i) {
-        log.debug("Filtered debug message", field("iteration", i));
-        log.verbose("Filtered verbose message", field("iteration", i));
-        log.info("Filtered info message", field("iteration", i));
+        if (i < 5) {
+            log.debug("Filtered debug message", field("iteration", i));
+            log.verbose("Filtered verbose message", field("iteration", i));
+            log.info("Filtered info message", field("iteration", i));
+        }
     }
     
     auto restrictive_time = std::chrono::steady_clock::now() - start;
@@ -293,9 +295,11 @@ int main() {
     start = std::chrono::steady_clock::now();
     
     for (int i = 0; i < iterations; ++i) {
-        log.debug("Filtered debug message", field("iteration", i));
-        log.verbose("Filtered verbose message", field("iteration", i));
-        log.info("Enabled info message", field("iteration", i));
+        if (i < 5) {
+            log.debug("Filtered debug message", field("iteration", i));
+            log.verbose("Filtered verbose message", field("iteration", i));
+            log.info("Enabled info message", field("iteration", i));
+        }
     }
     
     auto moderate_time = std::chrono::steady_clock::now() - start;
@@ -306,9 +310,11 @@ int main() {
     start = std::chrono::steady_clock::now();
     
     for (int i = 0; i < iterations; ++i) {
-        log.debug("Enabled debug message", field("iteration", i));
-        log.verbose("Enabled verbose message", field("iteration", i));
-        log.info("Enabled info message", field("iteration", i));
+        if (i < 5) {
+            log.debug("Enabled debug message", field("iteration", i));
+            log.verbose("Enabled verbose message", field("iteration", i));
+            log.info("Enabled info message", field("iteration", i));
+        }
     }
     
     auto verbose_time = std::chrono::steady_clock::now() - start;

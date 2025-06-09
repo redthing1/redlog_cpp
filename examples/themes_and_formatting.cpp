@@ -5,6 +5,261 @@
 #include <memory>
 #include <sstream>
 #include <iomanip>
+#include <fstream>
+
+// ========== COMPREHENSIVE CUSTOM THEMES ==========
+
+// Cyberpunk-style theme with bright neon colors
+redlog::theme create_cyberpunk_theme() {
+    redlog::theme cyberpunk = redlog::themes::default_theme;
+    cyberpunk.critical_color = redlog::color::bright_red;
+    cyberpunk.error_color = redlog::color::red;
+    cyberpunk.warn_color = redlog::color::bright_yellow;
+    cyberpunk.info_color = redlog::color::bright_cyan;
+    cyberpunk.verbose_color = redlog::color::cyan;
+    cyberpunk.trace_color = redlog::color::bright_blue;
+    cyberpunk.debug_color = redlog::color::bright_magenta;
+    cyberpunk.pedantic_color = redlog::color::magenta;
+    cyberpunk.annoying_color = redlog::color::bright_green;
+    cyberpunk.source_color = redlog::color::yellow;
+    cyberpunk.message_color = redlog::color::white;
+    cyberpunk.field_key_color = redlog::color::bright_cyan;
+    cyberpunk.field_value_color = redlog::color::white;
+    cyberpunk.source_width = 12;
+    cyberpunk.message_min_width = 50;
+    return cyberpunk;
+}
+
+// Minimal monochrome theme for production
+redlog::theme create_monochrome_theme() {
+    redlog::theme mono = redlog::themes::plain;
+    mono.source_width = 8;
+    mono.message_min_width = 30;
+    return mono;
+}
+
+// Retro green terminal theme
+redlog::theme create_retro_green_theme() {
+    redlog::theme retro = redlog::themes::default_theme;
+    retro.critical_color = redlog::color::bright_green;
+    retro.error_color = redlog::color::bright_green;
+    retro.warn_color = redlog::color::green;
+    retro.info_color = redlog::color::green;
+    retro.verbose_color = redlog::color::green;
+    retro.trace_color = redlog::color::green;
+    retro.debug_color = redlog::color::green;
+    retro.pedantic_color = redlog::color::green;
+    retro.annoying_color = redlog::color::green;
+    retro.source_color = redlog::color::bright_green;
+    retro.message_color = redlog::color::green;
+    retro.field_key_color = redlog::color::bright_green;
+    retro.field_value_color = redlog::color::green;
+    retro.source_width = 16;
+    retro.message_min_width = 40;
+    return retro;
+}
+
+// High-contrast accessibility theme
+redlog::theme create_accessibility_theme() {
+    redlog::theme accessible = redlog::themes::default_theme;
+    accessible.critical_color = redlog::color::white;
+    accessible.error_color = redlog::color::white;
+    accessible.warn_color = redlog::color::white;
+    accessible.info_color = redlog::color::white;
+    accessible.verbose_color = redlog::color::white;
+    accessible.trace_color = redlog::color::white;
+    accessible.debug_color = redlog::color::white;
+    accessible.pedantic_color = redlog::color::white;
+    accessible.annoying_color = redlog::color::white;
+    accessible.source_color = redlog::color::white;
+    accessible.message_color = redlog::color::white;
+    accessible.field_key_color = redlog::color::white;
+    accessible.field_value_color = redlog::color::white;
+    accessible.source_width = 20;
+    accessible.message_min_width = 60;
+    return accessible;
+}
+
+// ========== COMPREHENSIVE CUSTOM FORMATTERS ==========
+
+// Syslog-style formatter (RFC 3164)
+class syslog_formatter : public redlog::formatter {
+public:
+    std::string format(const redlog::log_entry& entry) const override {
+        std::ostringstream oss;
+        
+        // Syslog priority calculation (facility * 8 + severity)
+        // Using local0 facility (128) + severity based on level
+        int severity = static_cast<int>(entry.level_val);
+        if (severity > 7) severity = 7; // syslog max severity is 7
+        int priority = 128 + severity;
+        
+        // Timestamp in syslog format
+        auto time_t = std::chrono::system_clock::to_time_t(entry.timestamp);
+        auto tm = *std::localtime(&time_t);
+        
+        oss << "<" << priority << ">";
+        oss << std::put_time(&tm, "%b %d %H:%M:%S");
+        oss << " localhost";
+        
+        if (!entry.source.empty()) {
+            oss << " " << entry.source << ":";
+        }
+        
+        oss << " " << entry.message;
+        
+        // Add fields as key=value pairs
+        if (!entry.fields.empty()) {
+            for (const auto& f : entry.fields.fields()) {
+                oss << " " << f.key << "=" << f.value;
+            }
+        }
+        
+        return oss.str();
+    }
+};
+
+// Detailed debugging formatter
+class debug_formatter : public redlog::formatter {
+    redlog::theme theme_;
+    
+public:
+    debug_formatter() : theme_(redlog::detail::config::instance().get_theme()) {}
+    explicit debug_formatter(const redlog::theme& t) : theme_(t) {}
+    
+    std::string format(const redlog::log_entry& entry) const override {
+        std::ostringstream oss;
+        
+        // Thread ID
+        oss << "[TID:" << std::this_thread::get_id() << "] ";
+        
+        // High precision timestamp
+        auto duration = entry.timestamp.time_since_epoch();
+        auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration) % 1000;
+        auto time_t = std::chrono::system_clock::to_time_t(entry.timestamp);
+        auto tm = *std::localtime(&time_t);
+        
+        oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+        oss << "." << std::setfill('0') << std::setw(3) << millis.count() << " ";
+        
+        // Level with padding
+        std::string level_str = std::string(redlog::level_name(entry.level_val));
+        oss << "[" << std::setw(9) << std::left << level_str << "] ";
+        
+        // Source with padding
+        if (!entry.source.empty()) {
+            oss << "[" << std::setw(15) << std::left << entry.source << "] ";
+        } else {
+            oss << "[" << std::setw(15) << std::left << "main" << "] ";
+        }
+        
+        // Message
+        oss << entry.message;
+        
+        // Fields in detailed format
+        if (!entry.fields.empty()) {
+            oss << " {";
+            bool first = true;
+            for (const auto& f : entry.fields.fields()) {
+                if (!first) oss << ", ";
+                first = false;
+                oss << "\"" << f.key << "\": \"" << f.value << "\"";
+            }
+            oss << "}";
+        }
+        
+        return oss.str();
+    }
+};
+
+// Performance-optimized minimal formatter
+class minimal_formatter : public redlog::formatter {
+public:
+    std::string format(const redlog::log_entry& entry) const override {
+        std::ostringstream oss;
+        
+        // Just level short name and message
+        oss << redlog::level_short_name(entry.level_val) << " " << entry.message;
+        
+        // Minimal fields
+        if (!entry.fields.empty()) {
+            oss << " [";
+            bool first = true;
+            for (const auto& f : entry.fields.fields()) {
+                if (!first) oss << " ";
+                first = false;
+                oss << f.key << ":" << f.value;
+            }
+            oss << "]";
+        }
+        
+        return oss.str();
+    }
+};
+
+// Structured logging formatter for log aggregation
+class structured_formatter : public redlog::formatter {
+public:
+    std::string format(const redlog::log_entry& entry) const override {
+        std::ostringstream oss;
+        
+        // Always start with structured data
+        oss << "time=" << std::chrono::duration_cast<std::chrono::seconds>(
+                   entry.timestamp.time_since_epoch()).count();
+        oss << " level=" << redlog::level_name(entry.level_val);
+        
+        if (!entry.source.empty()) {
+            oss << " component=" << entry.source;
+        }
+        
+        oss << " msg=\"" << entry.message << "\"";
+        
+        // Add all fields as key=value
+        for (const auto& f : entry.fields.fields()) {
+            oss << " " << f.key << "=\"" << f.value << "\"";
+        }
+        
+        return oss.str();
+    }
+};
+
+// File sink that writes to multiple files based on level
+class level_based_file_sink : public redlog::sink {
+    std::unique_ptr<std::ofstream> error_file_;
+    std::unique_ptr<std::ofstream> info_file_;
+    std::unique_ptr<std::ofstream> debug_file_;
+    
+public:
+    level_based_file_sink(const std::string& base_path) 
+        : error_file_(std::make_unique<std::ofstream>(base_path + "_error.log", std::ios::app))
+        , info_file_(std::make_unique<std::ofstream>(base_path + "_info.log", std::ios::app))
+        , debug_file_(std::make_unique<std::ofstream>(base_path + "_debug.log", std::ios::app)) {}
+    
+    void write(std::string_view formatted) override {
+        // Parse level from formatted string (simple implementation)
+        std::string str(formatted);
+        
+        if (str.find("[crt]") != std::string::npos || str.find("[err]") != std::string::npos) {
+            if (error_file_ && error_file_->is_open()) {
+                *error_file_ << formatted << "\n";
+            }
+        } else if (str.find("[inf]") != std::string::npos || str.find("[wrn]") != std::string::npos) {
+            if (info_file_ && info_file_->is_open()) {
+                *info_file_ << formatted << "\n";
+            }
+        } else {
+            if (debug_file_ && debug_file_->is_open()) {
+                *debug_file_ << formatted << "\n";
+            }
+        }
+    }
+    
+    void flush() override {
+        if (error_file_) error_file_->flush();
+        if (info_file_) info_file_->flush();
+        if (debug_file_) debug_file_->flush();
+    }
+};
 
 // Custom formatter that adds timestamps
 class timestamped_formatter : public redlog::formatter {
@@ -161,8 +416,6 @@ struct server_stats {
 };
 
 void demonstrate_default_theme() {
-    std::cout << "\n=== Default Theme Demonstration ===" << std::endl;
-    std::cout << "Showing all log levels with default colors and formatting" << std::endl;
     
     auto log = redlog::get_logger("default");
     
@@ -187,8 +440,6 @@ void demonstrate_default_theme() {
 }
 
 void demonstrate_plain_theme() {
-    std::cout << "\n=== Plain Theme (No Colors) ===" << std::endl;
-    std::cout << "Same content but without ANSI color codes" << std::endl;
     
     // Switch to plain theme
     redlog::theme original_theme = redlog::get_theme();
@@ -212,8 +463,6 @@ void demonstrate_plain_theme() {
 }
 
 void demonstrate_custom_theme() {
-    std::cout << "\n=== Custom Theme (High Contrast) ===" << std::endl;
-    std::cout << "Custom color scheme optimized for dark terminals" << std::endl;
     
     // Create a custom high-contrast theme
     redlog::theme high_contrast = redlog::themes::default_theme;
@@ -255,31 +504,177 @@ void demonstrate_custom_theme() {
     redlog::set_theme(original_theme);
 }
 
-void demonstrate_custom_formatters() {
-    std::cout << "\n=== Custom Formatters Demonstration ===" << std::endl;
-    std::cout << "Comparing different output formats for the same log data" << std::endl;
+void demonstrate_comprehensive_themes() {
     
-    // Demonstrate timestamped formatter with actual logger integration
-    std::cout << "\n--- Timestamped Formatter (Live Integration) ---" << std::endl;
+    // Store original theme
+    redlog::theme original_theme = redlog::get_theme();
+    
+    // Sample log messages function
+    const auto generate_theme_samples = [](const std::string& theme_name) {
+        auto log = redlog::get_logger(theme_name);
+        log.critical("System critical alert");
+        log.error("Database connection failed");
+        log.warn("High memory usage detected");
+        log.info("User login successful", redlog::field("user", "alice"), redlog::field("ip", "192.168.1.100"));
+        log.verbose("Detailed operation trace");
+        log.debug("Variable state inspection", redlog::field("count", 42), redlog::field("active", true));
+    };
+    
+    // Cyberpunk theme demonstration
+    redlog::set_theme(create_cyberpunk_theme());
+    generate_theme_samples("cyberpunk");
+    
+    // Retro green theme demonstration
+    redlog::set_theme(create_retro_green_theme());
+    generate_theme_samples("retro");
+    
+    // Accessibility theme demonstration
+    redlog::set_theme(create_accessibility_theme());
+    generate_theme_samples("accessible");
+    
+    // Monochrome theme demonstration
+    redlog::set_theme(create_monochrome_theme());
+    generate_theme_samples("production");
+    
+    // Restore original theme
+    redlog::set_theme(original_theme);
+}
+
+void demonstrate_comprehensive_formatters() {
+    
+    // Sample data for all formatters
+    const auto generate_formatter_samples = [](redlog::logger& logger, const std::string& name) {
+        logger.error("Database connection failed",
+                   redlog::field("host", "db.prod.example.com"),
+                   redlog::field("port", 5432),
+                   redlog::field("timeout_ms", 5000),
+                   redlog::field("retry_count", 3));
+        
+        logger.info("User session created",
+                  redlog::field("user_id", "user_12345"),
+                  redlog::field("session_token", "abc123..."),
+                  redlog::field("ip_address", "203.0.113.45"),
+                  redlog::field("user_agent", "Chrome/96.0"));
+        
+        logger.warn("Rate limit approaching",
+                  redlog::field("current_rate", "450/min"),
+                  redlog::field("limit", "500/min"),
+                  redlog::field("client_id", "api_client_7"));
+    };
+    
+    // Timestamped formatter demonstration
     {
         auto string_sink_ptr = std::make_shared<string_sink>();
-        auto ts_formatter_ptr = std::make_shared<timestamped_formatter>();
+        auto formatter_ptr = std::make_shared<timestamped_formatter>();
+        redlog::logger logger("timestamps", formatter_ptr, string_sink_ptr);
         
-        // Create logger with custom formatter and sink using new API
-        redlog::logger timestamped_logger("timestamped", ts_formatter_ptr, string_sink_ptr);
-        
-        timestamped_logger.error("Database connection timeout",
-                               redlog::field("host", "db.example.com"),
-                               redlog::field("port", 5432),
-                               redlog::field("timeout_ms", 5000));
-        
-        timestamped_logger.info("User authentication successful",
-                              redlog::field("user_id", "alice_123"),
-                              redlog::field("method", "oauth2"));
-        
-        std::cout << "Captured output with timestamps:" << std::endl;
-        std::cout << string_sink_ptr->get_output() << std::endl;
+        generate_formatter_samples(logger, "timestamped");
     }
+    
+    // Syslog formatter demonstration
+    {
+        auto string_sink_ptr = std::make_shared<string_sink>();
+        auto formatter_ptr = std::make_shared<syslog_formatter>();
+        redlog::logger logger("syslog", formatter_ptr, string_sink_ptr);
+        
+        generate_formatter_samples(logger, "syslog");
+    }
+    
+    // Debug formatter demonstration
+    {
+        auto string_sink_ptr = std::make_shared<string_sink>();
+        auto formatter_ptr = std::make_shared<debug_formatter>();
+        redlog::logger logger("debug", formatter_ptr, string_sink_ptr);
+        
+        generate_formatter_samples(logger, "debug");
+    }
+    
+    // Minimal formatter demonstration
+    {
+        auto string_sink_ptr = std::make_shared<string_sink>();
+        auto formatter_ptr = std::make_shared<minimal_formatter>();
+        redlog::logger logger("minimal", formatter_ptr, string_sink_ptr);
+        
+        generate_formatter_samples(logger, "minimal");
+    }
+    
+    // Structured formatter demonstration
+    {
+        auto string_sink_ptr = std::make_shared<string_sink>();
+        auto formatter_ptr = std::make_shared<structured_formatter>();
+        redlog::logger logger("structured", formatter_ptr, string_sink_ptr);
+        
+        generate_formatter_samples(logger, "structured");
+    }
+}
+
+void demonstrate_advanced_custom_integration() {
+    std::cout << "\n=== Advanced Custom Integration ===" << std::endl;
+    std::cout << "Real-world scenarios combining custom themes, formatters, and sinks" << std::endl;
+    
+    // Scenario 1: Development environment with debug formatter and cyberpunk theme
+    std::cout << "\n--- Development Environment Setup ---" << std::endl;
+    {
+        auto string_sink_ptr = std::make_shared<string_sink>();
+        auto debug_formatter_ptr = std::make_shared<debug_formatter>(create_cyberpunk_theme());
+        redlog::logger dev_logger("dev-env", debug_formatter_ptr, string_sink_ptr);
+        
+        dev_logger.info("Development server starting");
+        dev_logger.debug("Loading configuration", redlog::field("config_file", "/etc/app/dev.json"));
+        dev_logger.warn("Using development database", redlog::field("db_host", "localhost"));
+        dev_logger.info("Server ready", redlog::field("port", 3000), redlog::field("mode", "development"));
+        
+        std::cout << "Development logs with debug formatter + cyberpunk theme:" << std::endl;
+    }
+    
+    // Scenario 2: Production environment with syslog formatter and monochrome theme
+    std::cout << "\n--- Production Environment Setup ---" << std::endl;
+    {
+        auto string_sink_ptr = std::make_shared<string_sink>();
+        auto syslog_formatter_ptr = std::make_shared<syslog_formatter>();
+        redlog::logger prod_logger("prod-api", syslog_formatter_ptr, string_sink_ptr);
+        
+        prod_logger.info("Production server starting");
+        prod_logger.info("Health check endpoint ready", redlog::field("path", "/health"));
+        prod_logger.warn("High load detected", redlog::field("cpu_percent", 85), redlog::field("memory_percent", 78));
+        prod_logger.error("Database query timeout", redlog::field("query_id", "q_789"), redlog::field("duration_ms", 5000));
+        
+        std::cout << "Production logs with syslog formatter:" << std::endl;
+    }
+    
+    // Scenario 3: Monitoring/Analytics with structured formatter
+    std::cout << "\n--- Analytics/Monitoring Environment Setup ---" << std::endl;
+    {
+        auto string_sink_ptr = std::make_shared<string_sink>();
+        auto structured_formatter_ptr = std::make_shared<structured_formatter>();
+        redlog::logger analytics_logger("analytics", structured_formatter_ptr, string_sink_ptr);
+        
+        analytics_logger.info("User action recorded",
+                            redlog::field("event_type", "page_view"),
+                            redlog::field("user_id", "usr_456"),
+                            redlog::field("page", "/dashboard"),
+                            redlog::field("duration_ms", 234));
+        
+        analytics_logger.info("API call completed",
+                            redlog::field("endpoint", "/api/v1/users"),
+                            redlog::field("method", "GET"),
+                            redlog::field("status_code", 200),
+                            redlog::field("response_time_ms", 45),
+                            redlog::field("user_agent", "mobile_app/2.1.0"));
+        
+        analytics_logger.warn("Rate limit hit",
+                            redlog::field("client_ip", "198.51.100.42"),
+                            redlog::field("endpoint", "/api/v1/search"),
+                            redlog::field("requests_per_minute", 1000),
+                            redlog::field("limit", 500));
+        
+        std::cout << "Analytics logs ready for log aggregation systems:" << std::endl;
+    }
+}
+
+void demonstrate_custom_formatters() {
+    std::cout << "\n=== Custom Formatters Integration Demo ===" << std::endl;
+    std::cout << "Quick demonstration of formatter integration with existing themes" << std::endl;
     
     // Demonstrate compact formatter with custom sink
     std::cout << "\n--- Compact Formatter (Production) ---" << std::endl;
@@ -298,7 +693,6 @@ void demonstrate_custom_formatters() {
                           redlog::field("duration", "45ms"));
         
         std::cout << "Compact format output:" << std::endl;
-        std::cout << string_sink_ptr->get_output() << std::endl;
     }
     
     // Demonstrate JSON formatter with custom sink
@@ -315,7 +709,6 @@ void demonstrate_custom_formatters() {
                        redlog::field("host", "web-01"));
         
         std::cout << "JSON format output:" << std::endl;
-        std::cout << string_sink_ptr->get_output() << std::endl;
     }
     
     // Standard formatter for comparison
@@ -504,31 +897,28 @@ void demonstrate_performance_comparison() {
 }
 
 int main() {
-    std::cout << "=== redlog Themes and Formatting Showcase ===" << std::endl;
-    std::cout << "Comprehensive demonstration of theming, formatting, and advanced features" << std::endl;
     
     // Set initial level to show most messages
     redlog::set_level(redlog::level::debug);
     
-    // Run all demonstrations
+    // Run basic demonstrations
     demonstrate_default_theme();
     demonstrate_plain_theme();
     demonstrate_custom_theme();
+    
+    // Run comprehensive custom demonstrations
+    demonstrate_comprehensive_themes();
+    demonstrate_comprehensive_formatters();
+    demonstrate_advanced_custom_integration();
+    
+    // Run legacy formatter integration demo (now simplified)
     demonstrate_custom_formatters();
+    
+    // Technical demonstrations
     demonstrate_printf_formatting_comprehensive();
     demonstrate_environment_variables();
     demonstrate_performance_comparison();
     
-    std::cout << "\n=== Showcase completed! ===" << std::endl;
-    std::cout << "Key features demonstrated:" << std::endl;
-    std::cout << "✓ Default and custom themes with full color customization" << std::endl;
-    std::cout << "✓ Plain theme for CI/production environments" << std::endl;
-    std::cout << "✓ Custom formatters (timestamped, compact, JSON)" << std::endl;
-    std::cout << "✓ Comprehensive printf formatting with all specifiers" << std::endl;
-    std::cout << "✓ Environment variable configuration" << std::endl;
-    std::cout << "✓ Performance characteristics and optimization" << std::endl;
-    std::cout << "✓ Custom types with operator<< integration" << std::endl;
-    std::cout << "✓ Structured logging with key-value fields" << std::endl;
     
     return 0;
 }
