@@ -54,7 +54,9 @@ public:
         auto duration = std::chrono::steady_clock::now() - start;
         auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
         
-        query_log.debug("Query completed",
+        query_log.debug_f("Query completed in %d ms, affected %d rows", 
+                          static_cast<int>(duration_ms), 42);
+        query_log.trace("Query performance",
                        redlog::field("duration_ms", duration_ms),
                        redlog::field("rows_affected", 42));
     }
@@ -88,7 +90,8 @@ void handle_http_request(const http_request& req) {
             db.connect("localhost", 5432);
             db.execute_query("SELECT * FROM users");
             
-            request_log.info("Request completed",
+            request_log.info_f("Request completed: %d status, %d bytes", 200, 1024);
+            request_log.debug("Response details",
                             redlog::field("status_code", 200),
                             redlog::field("response_size", 1024));
             
@@ -96,12 +99,12 @@ void handle_http_request(const http_request& req) {
             throw std::runtime_error("Simulated error");
             
         } else {
-            request_log.warn("Unknown endpoint",
-                            redlog::field("status_code", 404));
+            request_log.warn_f("Unknown endpoint: %s (status %d)", req.path.c_str(), 404);
         }
         
     } catch (const std::exception& e) {
-        request_log.error("Request processing failed",
+        request_log.error_f("Request failed with status %d: %s", 500, e.what());
+        request_log.debug("Error details",
                          redlog::field("error", e.what()),
                          redlog::field("status_code", 500));
     }
@@ -136,6 +139,16 @@ int main() {
     // Custom type logging
     custom_object obj{123, "test_object"};
     log.info("Custom object logging", redlog::field("object", obj));
+    
+    // Printf-style formatting demonstrations
+    log.info_f("Server stats: %d connections, %.1f%% CPU usage", 42, 85.7);
+    log.debug_f("Memory address: %p, hex value: 0x%x", &obj, 0xDEADBEEF);
+    log.verbose_f("Process ID: %d, thread count: %d", 1234, 8);
+    log.trace_f("Precision test: %.0f, %.2f, %.5f", 3.14159, 3.14159, 3.14159);
+    
+    // Using the general fmt function for string formatting
+    std::string status_msg = fmt("System ready: %d cores, %dMB RAM, %.1f%% disk free", 8, 16384, 67.3);
+    log.info("System status", redlog::field("status", status_msg));
     
     // Theme configuration
     log.info("Testing default theme");

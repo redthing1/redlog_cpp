@@ -186,38 +186,298 @@ void test_scoped_loggers() {
 void test_printf_formatting() {
     using namespace redlog;
     
+    // Test integer format specifiers
+    {
+        std::string result = redlog::detail::stream_printf("Value: %d", 42);
+        assert(result == "Value: 42");
+    }
+    
+    {
+        std::string result = redlog::detail::stream_printf("Value: %i", -123);
+        assert(result == "Value: -123");
+    }
+    
+    // Test hexadecimal format specifiers
+    {
+        std::string result = redlog::detail::stream_printf("Hex: %x", 255);
+        assert(result == "Hex: ff");
+    }
+    
+    {
+        std::string result = redlog::detail::stream_printf("HEX: %X", 255);
+        assert(result == "HEX: FF");
+    }
+    
+    // Test octal format specifier
+    {
+        std::string result = redlog::detail::stream_printf("Octal: %o", 64);
+        assert(result == "Octal: 100");
+    }
+    
+    // Test floating point format specifiers
+    {
+        std::string result = redlog::detail::stream_printf("Float: %f", 3.14);
+        assert(result == "Float: 3.14");
+    }
+    
+    {
+        std::string result = redlog::detail::stream_printf("Precision: %.2f", 3.14159);
+        assert(result == "Precision: 3.14");
+    }
+    
+    {
+        std::string result = redlog::detail::stream_printf("Scientific: %e", 1234.5);
+        // Scientific notation format can vary, just check it contains 'e' or 'E'
+        assert(result.find("e") != std::string::npos || result.find("E") != std::string::npos);
+        assert(result.find("Scientific:") != std::string::npos);
+    }
+    
+    // Test character format specifier
+    {
+        std::string result = redlog::detail::stream_printf("Char: %c", 65);
+        assert(result == "Char: A");
+    }
+    
+    // Test string format specifier
+    {
+        std::string result = redlog::detail::stream_printf("String: %s", "hello");
+        assert(result == "String: hello");
+    }
+    
+    // Test mixed format specifiers
+    {
+        std::string result = redlog::detail::stream_printf("Port %d on %s", 8080, "localhost");
+        assert(result == "Port 8080 on localhost");
+    }
+    
+    // Test custom type with operator<<
+    {
+        test_object obj{42, "test"};
+        std::string result = redlog::detail::stream_printf("Object: %s", obj);
+        assert(result.find("TestObject") != std::string::npos);
+        assert(result.find("42") != std::string::npos);
+    }
+    
+    // Test non-arithmetic type with %d (should fallback to stringify)
+    {
+        std::string text = "hello";
+        std::string result = redlog::detail::stream_printf("Text as int: %d", text);
+        assert(result == "Text as int: hello");
+    }
+    
+    // Test escaped %% 
+    {
+        std::string result = redlog::detail::stream_printf("Percentage: %%");
+        assert(result == "Percentage: %");
+    }
+    
+    // Test logger integration
     auto log = get_logger("printf_test");
     
-    // Test basic printf formatting
-    log.info_f("String: %s", "hello");
-    log.info_f("Number: %s", 42);
-    log.info_f("Float: %s", 3.14);
-    log.info_f("Multiple: %s %s %s", "a", 1, 2.5);
-    
-    // Test all level printf methods
-    log.critical_f("Critical: %s", "test");
-    log.error_f("Error: %s", "test");
-    log.warn_f("Warn: %s", "test");
-    log.verbose_f("Verbose: %s", "test");
-    log.trace_f("Trace: %s", "test");
-    log.debug_f("Debug: %s", "test");
-    log.pedantic_f("Pedantic: %s", "test");
-    log.annoying_f("Annoying: %s", "test");
+    // Test all level printf methods work
+    log.critical_f("Critical: %d", 1);
+    log.error_f("Error: %d", 2);
+    log.warn_f("Warn: %d", 3);
+    log.info_f("Info: %d", 4);
+    log.verbose_f("Verbose: %d", 5);
+    log.trace_f("Trace: %d", 6);
+    log.debug_f("Debug: %d", 7);
+    log.pedantic_f("Pedantic: %d", 8);
+    log.annoying_f("Annoying: %d", 9);
     
     // Test short form printf methods
-    log.crt_f("Critical short: %s", "test");
-    log.err_f("Error short: %s", "test");
-    log.wrn_f("Warn short: %s", "test");
-    log.inf_f("Info short: %s", "test");
-    log.vrb_f("Verbose short: %s", "test");
-    log.trc_f("Trace short: %s", "test");
-    log.dbg_f("Debug short: %s", "test");
-    log.ped_f("Pedantic short: %s", "test");
-    log.ayg_f("Annoying short: %s", "test");
+    log.crt_f("Critical short: %x", 255);
+    log.err_f("Error short: %x", 255);
+    log.wrn_f("Warn short: %x", 255);
+    log.inf_f("Info short: %x", 255);
+    log.vrb_f("Verbose short: %x", 255);
+    log.trc_f("Trace short: %x", 255);
+    log.dbg_f("Debug short: %x", 255);
+    log.ped_f("Pedantic short: %x", 255);
+    log.ayg_f("Annoying short: %x", 255);
+}
+
+void test_format_specifier_parsing() {
+    using namespace redlog;
     
-    // Test with custom object
-    test_object obj{99, "printf_test"};
-    log.info_f("Custom object: %s", obj);
+    // Test comprehensive integer formatting
+    {
+        assert(redlog::detail::stream_printf("%d", 0) == "0");
+        assert(redlog::detail::stream_printf("%d", -1) == "-1");
+        assert(redlog::detail::stream_printf("%d", 12345) == "12345");
+        assert(redlog::detail::stream_printf("%i", 42) == "42");
+    }
+    
+    // Test hexadecimal formatting variations
+    {
+        assert(redlog::detail::stream_printf("%x", 0) == "0");
+        assert(redlog::detail::stream_printf("%x", 10) == "a");
+        assert(redlog::detail::stream_printf("%x", 255) == "ff");
+        assert(redlog::detail::stream_printf("%X", 255) == "FF");
+        assert(redlog::detail::stream_printf("%X", 10) == "A");
+    }
+    
+    // Test octal formatting
+    {
+        assert(redlog::detail::stream_printf("%o", 0) == "0");
+        assert(redlog::detail::stream_printf("%o", 8) == "10");
+        assert(redlog::detail::stream_printf("%o", 64) == "100");
+        assert(redlog::detail::stream_printf("%o", 511) == "777");
+    }
+    
+    // Test floating point formatting
+    {
+        assert(redlog::detail::stream_printf("%f", 0.0) == "0");
+        assert(redlog::detail::stream_printf("%f", 1.0) == "1");
+        assert(redlog::detail::stream_printf("%f", 3.14) == "3.14");
+        assert(redlog::detail::stream_printf("%f", -2.5) == "-2.5");
+    }
+    
+    // Test precision specifiers in detail
+    {
+        assert(redlog::detail::stream_printf("%.0f", 3.14159) == "3");
+        assert(redlog::detail::stream_printf("%.1f", 3.14159) == "3.1");
+        assert(redlog::detail::stream_printf("%.2f", 3.14159) == "3.14");
+        assert(redlog::detail::stream_printf("%.3f", 3.14159) == "3.142");
+        assert(redlog::detail::stream_printf("%.5f", 3.14159) == "3.14159");
+    }
+    
+    // Test scientific notation
+    {
+        std::string result_e = redlog::detail::stream_printf("%e", 1234.5);
+        assert(result_e.find("e") != std::string::npos);
+        assert(result_e.find("1.234") != std::string::npos);
+        
+        std::string result_E = redlog::detail::stream_printf("%E", 1234.5);
+        assert(result_E.find("E") != std::string::npos);
+        assert(result_E.find("1.234") != std::string::npos);
+    }
+    
+    // Test character formatting
+    {
+        assert(redlog::detail::stream_printf("%c", 65) == "A");
+        assert(redlog::detail::stream_printf("%c", 97) == "a");
+        assert(redlog::detail::stream_printf("%c", 48) == "0");
+        assert(redlog::detail::stream_printf("%c", 32) == " ");
+    }
+    
+    // Test string formatting with various string types
+    {
+        assert(redlog::detail::stream_printf("%s", "hello") == "hello");
+        assert(redlog::detail::stream_printf("%s", std::string("world")) == "world");
+        
+        const char* cstr = "test";
+        assert(redlog::detail::stream_printf("%s", cstr) == "test");
+        
+        std::string stdstr = "string";
+        assert(redlog::detail::stream_printf("%s", stdstr) == "string");
+    }
+    
+    // Test complex mixed formatting
+    {
+        std::string result = redlog::detail::stream_printf(
+            "Server %s:%d (load: %.1f%%, hex: 0x%x, octal: %o)",
+            "localhost", 8080, 95.7, 255, 64
+        );
+        assert(result == "Server localhost:8080 (load: 95.7%, hex: 0xff, octal: 100)");
+    }
+    
+    // Test format specifier edge cases
+    {
+        // Single format specifier
+        assert(redlog::detail::stream_printf("%d", 42) == "42");
+        
+        // Format at beginning
+        assert(redlog::detail::stream_printf("%s world", "hello") == "hello world");
+        
+        // Format at end
+        assert(redlog::detail::stream_printf("value: %d", 42) == "value: 42");
+        
+        // Multiple consecutive formats
+        assert(redlog::detail::stream_printf("%d%s%d", 1, "a", 2) == "1a2");
+    }
+    
+    // Test non-standard types with different format specifiers
+    {
+        // String with numeric format should fallback to stringify
+        std::string text = "hello";
+        assert(redlog::detail::stream_printf("%d", text) == "hello");
+        assert(redlog::detail::stream_printf("%x", text) == "hello");
+        assert(redlog::detail::stream_printf("%f", text) == "hello");
+    }
+}
+
+void test_printf_edge_cases() {
+    using namespace redlog;
+    
+    // Test error handling with invalid format
+    {
+        std::string result = redlog::detail::stream_printf("Invalid: %q", 42);
+        assert(result.find("Invalid:") != std::string::npos);  // Should handle gracefully
+    }
+    
+    // Test missing arguments
+    {
+        std::string result = redlog::detail::stream_printf("Missing: %d %s");
+        assert(result == "Missing: %d %s");  // Should leave unused specifiers
+    }
+    
+    // Test extra arguments
+    {
+        std::string result = redlog::detail::stream_printf("Extra: %d", 42, 99);
+        assert(result == "Extra: 42");  // Should ignore extra args
+    }
+    
+    // Test no format specifiers
+    {
+        std::string result = redlog::detail::stream_printf("No formats", 42, "ignored");
+        assert(result == "No formats");
+    }
+    
+    // Test only format specifiers
+    {
+        std::string result = redlog::detail::stream_printf("%d %s %f", 42, "hello", 3.14);
+        assert(result == "42 hello 3.14");
+    }
+    
+    // Test complex precision format
+    {
+        std::string result = redlog::detail::stream_printf("Complex: %.3f", 3.14159);
+        assert(result == "Complex: 3.142");
+    }
+    
+    // Test zero precision
+    {
+        std::string result = redlog::detail::stream_printf("Zero precision: %.0f", 3.14159);
+        assert(result == "Zero precision: 3");
+    }
+    
+    // Test large numbers
+    {
+        std::string result = redlog::detail::stream_printf("Large: %d", 2147483647);
+        assert(result == "Large: 2147483647");
+    }
+    
+    // Test negative numbers
+    {
+        std::string result = redlog::detail::stream_printf("Negative: %d %f", -42, -3.14);
+        assert(result == "Negative: -42 -3.14");
+    }
+    
+    // Test boolean values
+    {
+        std::string result = redlog::detail::stream_printf("Bool true: %d, false: %d", true, false);
+        assert(result == "Bool true: 1, false: 0");
+    }
+    
+    // Test different numeric types
+    {
+        short s = 123;
+        long l = 456789;
+        unsigned u = 999;
+        std::string result = redlog::detail::stream_printf("Types: %d %d %d", s, l, u);
+        assert(result == "Types: 123 456789 999");
+    }
 }
 
 void test_level_filtering() {
@@ -301,6 +561,35 @@ void test_stringification() {
     assert(result.find("TestObject") != std::string::npos);
     assert(result.find("123") != std::string::npos);
     assert(result.find("stringify_test") != std::string::npos);
+}
+
+void test_fmt_function() {
+    using namespace redlog;
+    
+    // Test basic format specifiers
+    assert(fmt("Value: %d", 42) == "Value: 42");
+    assert(fmt("Float: %.2f", 3.14159) == "Float: 3.14");
+    assert(fmt("String: %s", "hello") == "String: hello");
+    assert(fmt("Hex: %x", 255) == "Hex: ff");
+    assert(fmt("HEX: %X", 255) == "HEX: FF");
+    assert(fmt("Octal: %o", 64) == "Octal: 100");
+    assert(fmt("Char: %c", 65) == "Char: A");
+    
+    // Test mixed format specifiers
+    assert(fmt("Server %s:%d (load: %.1f%%)", "localhost", 8080, 95.7) == 
+           "Server localhost:8080 (load: 95.7%)");
+    
+    // Test custom type
+    test_object obj{42, "test"};
+    std::string result = fmt("Object: %s", obj);
+    assert(result.find("TestObject") != std::string::npos);
+    assert(result.find("42") != std::string::npos);
+    
+    // Test no arguments
+    assert(fmt("No args") == "No args");
+    
+    // Test escaped %%
+    assert(fmt("Percentage: %%") == "Percentage: %");
 }
 
 void test_field_set_operations() {
@@ -431,7 +720,10 @@ int main() {
     // Component tests
     runner.run_test("Formatter Functionality", test_formatter_functionality);
     runner.run_test("Stringification", test_stringification);
+    runner.run_test("Fmt Function", test_fmt_function);
     runner.run_test("Field Set Operations", test_field_set_operations);
+    runner.run_test("Format Specifier Parsing", test_format_specifier_parsing);
+    runner.run_test("Printf Edge Cases", test_printf_edge_cases);
     
     // Advanced tests
     runner.run_test("Thread Safety", test_thread_safety);
