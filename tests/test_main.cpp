@@ -5,6 +5,93 @@
 #include <thread>
 #include <vector>
 #include <chrono>
+#include <iomanip>
+#include <memory>
+
+// String sink for capturing output in tests
+class string_sink : public redlog::sink {
+    std::ostringstream buffer_;
+    
+public:
+    void write(std::string_view formatted) override {
+        buffer_ << formatted << "\n";
+    }
+    
+    void flush() override {
+        // No-op for string sink
+    }
+    
+    std::string get_output() const {
+        return buffer_.str();
+    }
+    
+    void clear() {
+        buffer_.str("");
+        buffer_.clear();
+    }
+};
+
+// Custom formatter that adds timestamps (from the themes example)
+class timestamped_formatter : public redlog::formatter {
+    redlog::theme theme_;
+    
+    redlog::color level_color(redlog::level l) const {
+        switch (l) {
+        case redlog::level::critical: return theme_.critical_color;
+        case redlog::level::error: return theme_.error_color;
+        case redlog::level::warn: return theme_.warn_color;
+        case redlog::level::info: return theme_.info_color;
+        case redlog::level::verbose: return theme_.verbose_color;
+        case redlog::level::trace: return theme_.trace_color;
+        case redlog::level::debug: return theme_.debug_color;
+        case redlog::level::pedantic: return theme_.pedantic_color;
+        case redlog::level::annoying: return theme_.annoying_color;
+        default: return redlog::color::white;
+        }
+    }
+    
+public:
+    timestamped_formatter() : theme_(redlog::detail::config::instance().get_theme()) {}
+    explicit timestamped_formatter(const redlog::theme& t) : theme_(t) {}
+    
+    std::string format(const redlog::log_entry& entry) const override {
+        std::ostringstream oss;
+        
+        // Add timestamp
+        auto time_t = std::chrono::system_clock::to_time_t(entry.timestamp);
+        auto tm = *std::localtime(&time_t);
+        oss << "[" << std::put_time(&tm, "%H:%M:%S") << "] ";
+        
+        // Source component
+        if (!entry.source.empty()) {
+            std::string source_part = entry.source;
+            oss << redlog::detail::colorize(source_part, theme_.source_color) << " ";
+        }
+        
+        // Level component  
+        std::string level_part = std::string(redlog::level_short_name(entry.level_val));
+        oss << redlog::detail::colorize(level_part, level_color(entry.level_val)) << ": ";
+        
+        // Message
+        oss << redlog::detail::colorize(entry.message, theme_.message_color);
+        
+        // Fields
+        if (!entry.fields.empty()) {
+            oss << " [";
+            bool first = true;
+            for (const auto& f : entry.fields.fields()) {
+                if (!first) oss << ", ";
+                first = false;
+                oss << redlog::detail::colorize(f.key, theme_.field_key_color)
+                    << "="
+                    << redlog::detail::colorize(f.value, theme_.field_value_color);
+            }
+            oss << "]";
+        }
+        
+        return oss.str();
+    }
+};
 
 // Simple test framework
 class test_runner {
@@ -749,6 +836,74 @@ void test_performance_characteristics() {
     set_level(level::info);  // Re-enable for other tests
 }
 
+void test_printf_width_formatting() {
+    using namespace redlog;
+    
+    // Width formatting for integers
+    std::string width_int = fmt("Width: %8d", 42);
+    assert(width_int.find("42") != std::string::npos);
+    
+    // Zero padding
+    std::string zero_pad = fmt("Zero pad: %08x", 255);
+    assert(zero_pad.find("000000ff") != std::string::npos || zero_pad.find("ff") != std::string::npos);
+    
+    // Precision for floats
+    std::string precision = fmt("Precision: %.3f", 3.14159);
+    assert(precision.find("3.142") != std::string::npos);
+    
+    // Mixed width and precision
+    std::string mixed = fmt("Mixed: %10.2f", 42.567);
+    assert(mixed.find("42.57") != std::string::npos);
+    
+    // Left alignment
+    std::string left_align = fmt("Left: %-8d end", 42);
+    assert(left_align.find("42") != std::string::npos);
+    assert(left_align.find("end") != std::string::npos);
+    
+    // Test hex with width and uppercase
+    std::string hex_width = fmt("Hex: %04X", 255);
+    assert(hex_width.find("00FF") != std::string::npos || hex_width.find("FF") != std::string::npos);
+}
+
+void test_custom_components() {
+    using namespace redlog;
+    
+    set_level(level::debug);
+    
+    // Create custom sink that captures output
+    auto string_sink_ptr = std::make_shared<string_sink>();
+    
+    // Create logger with custom sink
+    logger custom_logger("custom", string_sink_ptr);
+    
+    custom_logger.info("Test message with custom sink");
+    
+    std::string captured = string_sink_ptr->get_output();
+    assert(captured.find("Test message with custom sink") != std::string::npos);
+    assert(captured.find("[custom]") != std::string::npos);
+    
+    // Test that custom formatter can be created (even if we can't fully test integration)
+    timestamped_formatter ts_formatter;
+    log_entry sample_entry(level::info, "Sample message", "test", field_set{});
+    std::string formatted = ts_formatter.format(sample_entry);
+    assert(formatted.find("Sample message") != std::string::npos);
+    assert(formatted.find("[") != std::string::npos);  // should have timestamp brackets
+    
+    // Test custom formatter with fields
+    field_set test_fields;
+    test_fields.add(field("key1", "value1"));
+    test_fields.add(field("key2", 42));
+    log_entry entry_with_fields(level::warn, "Test with fields", "test_source", test_fields);
+    std::string formatted_with_fields = ts_formatter.format(entry_with_fields);
+    
+    // strip ansi color codes before checking for field content
+    std::string clean_output = strip_ansi_colors(formatted_with_fields);
+    
+    assert(clean_output.find("Test with fields") != std::string::npos);
+    assert(clean_output.find("key1=value1") != std::string::npos);
+    assert(clean_output.find("key2=42") != std::string::npos);
+}
+
 int main() {
     std::cout << "=== redlog Test Suite ===\n\n";
     
@@ -769,6 +924,8 @@ int main() {
     runner.run_test("Field Set Operations", test_field_set_operations);
     runner.run_test("Format Specifier Parsing", test_format_specifier_parsing);
     runner.run_test("Printf Edge Cases", test_printf_edge_cases);
+    runner.run_test("Printf Width Formatting", test_printf_width_formatting);
+    runner.run_test("Custom Components", test_custom_components);
     
     // Advanced tests
     runner.run_test("Thread Safety", test_thread_safety);

@@ -259,68 +259,67 @@ void demonstrate_custom_formatters() {
     std::cout << "\n=== Custom Formatters Demonstration ===" << std::endl;
     std::cout << "Comparing different output formats for the same log data" << std::endl;
     
-    // Sample log data
-    const auto generate_sample_logs = [](redlog::logger& log) {
-        log.error("Database connection timeout",
-                 redlog::field("host", "db.example.com"),
-                 redlog::field("port", 5432),
-                 redlog::field("timeout_ms", 5000));
-        
-        log.info("User authentication successful",
-                redlog::field("user_id", "alice_123"),
-                redlog::field("method", "oauth2"),
-                redlog::field("duration_ms", 150));
-        
-        log.warn("High memory usage detected",
-                redlog::field("current_usage", "87.3%"),
-                redlog::field("threshold", "85%"),
-                redlog::field("action", "scale_up"));
-    };
-    
-    // Demonstrate timestamped formatter
-    std::cout << "\n--- Timestamped Formatter ---" << std::endl;
+    // Demonstrate timestamped formatter with actual logger integration
+    std::cout << "\n--- Timestamped Formatter (Live Integration) ---" << std::endl;
     {
         auto string_sink_ptr = std::make_shared<string_sink>();
-        // Note: This is a simplified demo - in real usage you'd need to create
-        // a logger with custom formatter and sink, which requires extending the API
-        auto log = redlog::get_logger("timestamped");
-        generate_sample_logs(log);
+        auto ts_formatter_ptr = std::make_shared<timestamped_formatter>();
         
-        // Show what the timestamped formatter would produce
-        timestamped_formatter ts_formatter;
-        redlog::log_entry sample_entry(redlog::level::info, "Sample message with timestamp", "demo", 
-                                     redlog::field_set{redlog::field("key", "value")});
-        std::cout << "Example: " << ts_formatter.format(sample_entry) << std::endl;
+        // Create logger with custom formatter and sink using new API
+        redlog::logger timestamped_logger("timestamped", ts_formatter_ptr, string_sink_ptr);
+        
+        timestamped_logger.error("Database connection timeout",
+                               redlog::field("host", "db.example.com"),
+                               redlog::field("port", 5432),
+                               redlog::field("timeout_ms", 5000));
+        
+        timestamped_logger.info("User authentication successful",
+                              redlog::field("user_id", "alice_123"),
+                              redlog::field("method", "oauth2"));
+        
+        std::cout << "Captured output with timestamps:" << std::endl;
+        std::cout << string_sink_ptr->get_output() << std::endl;
     }
     
-    // Demonstrate compact formatter  
+    // Demonstrate compact formatter with custom sink
     std::cout << "\n--- Compact Formatter (Production) ---" << std::endl;
     {
-        compact_formatter compact_fmt;
-        redlog::log_entry sample_entry(redlog::level::error, "Database connection failed", "db-pool",
-                                     redlog::field_set{redlog::field("host", "db.example.com"), 
-                                                      redlog::field("error", "timeout")});
-        std::cout << "Example: " << compact_fmt.format(sample_entry) << std::endl;
+        auto string_sink_ptr = std::make_shared<string_sink>();
+        auto compact_formatter_ptr = std::make_shared<compact_formatter>();
         
-        redlog::log_entry info_entry(redlog::level::info, "Request processed successfully", "api",
-                                    redlog::field_set{redlog::field("request_id", "req_123"), 
-                                                     redlog::field("duration", "45ms")});
-        std::cout << "Example: " << compact_fmt.format(info_entry) << std::endl;
+        redlog::logger compact_logger("compact", compact_formatter_ptr, string_sink_ptr);
+        
+        compact_logger.error("Database connection failed",
+                           redlog::field("host", "db.example.com"), 
+                           redlog::field("error", "timeout"));
+        
+        compact_logger.info("Request processed successfully",
+                          redlog::field("request_id", "req_123"), 
+                          redlog::field("duration", "45ms"));
+        
+        std::cout << "Compact format output:" << std::endl;
+        std::cout << string_sink_ptr->get_output() << std::endl;
     }
     
-    // Demonstrate JSON formatter
+    // Demonstrate JSON formatter with custom sink
     std::cout << "\n--- JSON Formatter (Structured Logging) ---" << std::endl;
     {
-        json_formatter json_fmt;
-        redlog::log_entry sample_entry(redlog::level::warn, "High CPU usage detected", "monitor",
-                                     redlog::field_set{redlog::field("cpu_percent", "89.5"), 
-                                                      redlog::field("threshold", "85"),
-                                                      redlog::field("host", "web-01")});
-        std::cout << "Example: " << json_fmt.format(sample_entry) << std::endl;
+        auto string_sink_ptr = std::make_shared<string_sink>();
+        auto json_formatter_ptr = std::make_shared<json_formatter>();
+        
+        redlog::logger json_logger("json", json_formatter_ptr, string_sink_ptr);
+        
+        json_logger.warn("High CPU usage detected",
+                       redlog::field("cpu_percent", "89.5"), 
+                       redlog::field("threshold", "85"),
+                       redlog::field("host", "web-01"));
+        
+        std::cout << "JSON format output:" << std::endl;
+        std::cout << string_sink_ptr->get_output() << std::endl;
     }
     
     // Standard formatter for comparison
-    std::cout << "\n--- Standard Formatter (Default) ---" << std::endl;
+    std::cout << "\n--- Standard Formatter (Default Console) ---" << std::endl;
     {
         auto log = redlog::get_logger("standard");
         log.warn("High CPU usage detected",
@@ -354,7 +353,7 @@ void demonstrate_environment_variables() {
 
 void demonstrate_printf_formatting_comprehensive() {
     std::cout << "\n=== Comprehensive Printf Formatting ===" << std::endl;
-    std::cout << "Testing all supported format specifiers and edge cases" << std::endl;
+    std::cout << "Testing all supported format specifiers and advanced formatting" << std::endl;
     
     auto log = redlog::get_logger("printf-demo");
     
@@ -364,42 +363,73 @@ void demonstrate_printf_formatting_comprehensive() {
     log.info_f("Hexadecimal: %x (lower), %X (upper)", 255, 255);
     log.info_f("Octal: %o", 64);
     
+    // Width and padding formats
+    std::cout << "\n--- Width and Padding Formatting ---" << std::endl;
+    log.info_f("Zero padding: %08d, %08x", 42, 255);
+    log.info_f("Width alignment: %10d, %-10d", 42, 42);
+    log.info_f("Hex with width: %04X, %08X", 255, 0xABCD);
+    log.info_f("Mixed widths: %6d %6s %6.2f", 123, "test", 3.14);
+    
     // Floating point formats
     std::cout << "\n--- Floating Point Formatting ---" << std::endl;
     log.info_f("Default float: %f", 3.14159);
     log.info_f("Precision: %.2f, %.5f", 3.14159, 3.14159);
+    log.info_f("Width + precision: %10.3f, %8.1f", 3.14159, 42.7);
     log.info_f("Scientific: %e, %E", 1234.5, 1234.5);
+    log.info_f("Scientific with precision: %.3e, %.2E", 1234.567, 9876.54);
     
     // Character and string formats
     std::cout << "\n--- Character and String Formatting ---" << std::endl;
     log.info_f("Character: %c", 65);
     log.info_f("String: %s", "Hello, World!");
-    log.info_f("C-string: %s", "redlog");
+    log.info_f("String with width: %15s, %-15s", "right", "left");
     
     // Custom types with operator<<
     std::cout << "\n--- Custom Type Formatting ---" << std::endl;
     server_stats stats{42, 67.8, 1024};
     log.info_f("Custom object: %s", stats);
+    log.info_f("Custom object with width: %50s", stats);
     
     // Complex mixed formatting
     std::cout << "\n--- Complex Mixed Formatting ---" << std::endl;
-    log.info_f("Server %s:%d status: %.1f%% CPU, 0x%x memory pages, %o permissions", 
+    log.info_f("Server %s:%d status: %.1f%% CPU, 0x%04X memory pages, %03o permissions", 
               "web-server-01", 8080, 85.7, 256, 755);
+    
+    log.info_f("Memory dump: addr=0x%08X, size=%6d bytes, pattern=0x%02x", 
+              0x7FFE1234, 1024, 0xAA);
     
     // Edge cases and special characters
     std::cout << "\n--- Edge Cases ---" << std::endl;
     log.info_f("Escaped percent: %%");
     log.info_f("Zero values: %d, %f, %x", 0, 0.0, 0);
     log.info_f("Negative values: %d, %f", -42, -3.14);
+    log.info_f("Zero-padded negatives: %08d, %06.2f", -42, -3.14);
     
     // Using the standalone fmt function
     std::cout << "\n--- Standalone fmt() Function ---" << std::endl;
     std::string formatted = redlog::fmt("Standalone formatting: %d items, %.2f%% complete", 150, 67.89);
     log.info(formatted);
     
-    std::string complex_msg = redlog::fmt("Complex: host=%s, pid=%d, memory=%.1fMB, flags=0x%x", 
+    std::string complex_msg = redlog::fmt("Complex: host=%s, pid=%05d, memory=%8.1fMB, flags=0x%04X", 
                                         "server-01", 12345, 128.7, 0xABCD);
     log.info(complex_msg);
+    
+    // Performance comparison of new printf vs old
+    std::cout << "\n--- Printf Performance Demonstration ---" << std::endl;
+    const int test_iterations = 1000;
+    
+    auto start = std::chrono::steady_clock::now();
+    for (int i = 0; i < test_iterations; ++i) {
+        std::string result = redlog::fmt("Iteration %04d: value=0x%08X, progress=%.2f%%", 
+                                       i, i * 0xABCD, (i / 10.0));
+        // consume result to prevent optimization
+        (void)result;
+    }
+    auto end = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    
+    log.info_f("Printf performance: %d iterations in %d microseconds (%.2f per call)", 
+              test_iterations, duration.count(), duration.count() / double(test_iterations));
 }
 
 void demonstrate_performance_comparison() {

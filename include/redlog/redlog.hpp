@@ -1,16 +1,20 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <functional>
 #include <iomanip>
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 
@@ -188,6 +192,65 @@ std::string stringify(T&& value) {
 /**
  * Format a single argument according to its format specifier.
  */
+// helper to parse format specifiers with width and precision
+struct format_spec_info {
+    char format_char;
+    int width = 0;
+    int precision = -1;
+    bool zero_pad = false;
+    bool left_align = false;
+    
+    static format_spec_info parse(const std::string& format_spec) {
+        format_spec_info info;
+        if (format_spec.length() < 2) return info;
+        
+        info.format_char = format_spec.back();
+        std::string_view spec_view(format_spec);
+        spec_view.remove_prefix(1); // remove '%'
+        spec_view.remove_suffix(1); // remove format char
+        
+        std::size_t pos = 0;
+        
+        // check for flags
+        while (pos < spec_view.length()) {
+            if (spec_view[pos] == '0') {
+                info.zero_pad = true;
+                pos++;
+            } else if (spec_view[pos] == '-') {
+                info.left_align = true;
+                pos++;
+            } else {
+                break;
+            }
+        }
+        
+        // parse width
+        std::size_t width_start = pos;
+        while (pos < spec_view.length() && std::isdigit(spec_view[pos])) {
+            pos++;
+        }
+        if (pos > width_start) {
+            std::string width_str(spec_view.substr(width_start, pos - width_start));
+            info.width = std::stoi(width_str);
+        }
+        
+        // parse precision
+        if (pos < spec_view.length() && spec_view[pos] == '.') {
+            pos++;
+            std::size_t precision_start = pos;
+            while (pos < spec_view.length() && std::isdigit(spec_view[pos])) {
+                pos++;
+            }
+            if (pos > precision_start) {
+                std::string precision_str(spec_view.substr(precision_start, pos - precision_start));
+                info.precision = std::stoi(precision_str);
+            }
+        }
+        
+        return info;
+    }
+};
+
 template<typename T>
 void format_argument(std::ostringstream& oss, T&& value, const std::string& format_spec) {
     using decay_t = std::decay_t<T>;
@@ -197,14 +260,24 @@ void format_argument(std::ostringstream& oss, T&& value, const std::string& form
         return;
     }
     
-    char format_char = format_spec.back();
+    auto spec_info = format_spec_info::parse(format_spec);
     
     // Handle different format specifiers
-    switch (format_char) {
+    switch (spec_info.format_char) {
         case 'd':
         case 'i':
             if constexpr (std::is_arithmetic_v<decay_t>) {
+                if (spec_info.width > 0) {
+                    oss << std::setw(spec_info.width);
+                    if (spec_info.zero_pad && !spec_info.left_align) {
+                        oss << std::setfill('0');
+                    }
+                    if (spec_info.left_align) {
+                        oss << std::left;
+                    }
+                }
                 oss << static_cast<long long>(value);
+                oss << std::setfill(' ') << std::right;  // reset
             } else {
                 oss << stringify(std::forward<T>(value));
             }
@@ -212,7 +285,18 @@ void format_argument(std::ostringstream& oss, T&& value, const std::string& form
             
         case 'x':
             if constexpr (std::is_arithmetic_v<decay_t>) {
-                oss << std::hex << std::nouppercase << static_cast<unsigned long long>(value) << std::dec;
+                oss << std::hex << std::nouppercase;
+                if (spec_info.width > 0) {
+                    oss << std::setw(spec_info.width);
+                    if (spec_info.zero_pad && !spec_info.left_align) {
+                        oss << std::setfill('0');
+                    }
+                    if (spec_info.left_align) {
+                        oss << std::left;
+                    }
+                }
+                oss << static_cast<unsigned long long>(value) << std::dec;
+                oss << std::setfill(' ') << std::right;  // reset
             } else {
                 oss << stringify(std::forward<T>(value));
             }
@@ -220,7 +304,18 @@ void format_argument(std::ostringstream& oss, T&& value, const std::string& form
             
         case 'X':
             if constexpr (std::is_arithmetic_v<decay_t>) {
-                oss << std::hex << std::uppercase << static_cast<unsigned long long>(value) << std::dec;
+                oss << std::hex << std::uppercase;
+                if (spec_info.width > 0) {
+                    oss << std::setw(spec_info.width);
+                    if (spec_info.zero_pad && !spec_info.left_align) {
+                        oss << std::setfill('0');
+                    }
+                    if (spec_info.left_align) {
+                        oss << std::left;
+                    }
+                }
+                oss << static_cast<unsigned long long>(value) << std::dec;
+                oss << std::setfill(' ') << std::right;  // reset
             } else {
                 oss << stringify(std::forward<T>(value));
             }
@@ -228,7 +323,18 @@ void format_argument(std::ostringstream& oss, T&& value, const std::string& form
             
         case 'o':
             if constexpr (std::is_arithmetic_v<decay_t>) {
-                oss << std::oct << static_cast<unsigned long long>(value) << std::dec;
+                oss << std::oct;
+                if (spec_info.width > 0) {
+                    oss << std::setw(spec_info.width);
+                    if (spec_info.zero_pad && !spec_info.left_align) {
+                        oss << std::setfill('0');
+                    }
+                    if (spec_info.left_align) {
+                        oss << std::left;
+                    }
+                }
+                oss << static_cast<unsigned long long>(value) << std::dec;
+                oss << std::setfill(' ') << std::right;  // reset
             } else {
                 oss << stringify(std::forward<T>(value));
             }
@@ -237,18 +343,21 @@ void format_argument(std::ostringstream& oss, T&& value, const std::string& form
         case 'f':
         case 'F':
             if constexpr (std::is_arithmetic_v<decay_t>) {
-                // Check for precision specifier like %.2f
-                std::size_t dot_pos = format_spec.find('.');
-                if (dot_pos != std::string::npos && dot_pos + 1 < format_spec.length() - 1) {
-                    std::string precision_str = format_spec.substr(dot_pos + 1, format_spec.length() - dot_pos - 2);
-                    if (!precision_str.empty() && std::all_of(precision_str.begin(), precision_str.end(), ::isdigit)) {
-                        int precision = std::stoi(precision_str);
-                        oss << std::fixed << std::setprecision(precision) << static_cast<double>(value);
-                        oss.unsetf(std::ios::fixed);
-                        break;
+                if (spec_info.precision >= 0) {
+                    oss << std::fixed << std::setprecision(spec_info.precision);
+                }
+                if (spec_info.width > 0) {
+                    oss << std::setw(spec_info.width);
+                    if (spec_info.zero_pad && !spec_info.left_align) {
+                        oss << std::setfill('0');
+                    }
+                    if (spec_info.left_align) {
+                        oss << std::left;
                     }
                 }
                 oss << static_cast<double>(value);
+                oss.unsetf(std::ios::fixed);
+                oss << std::setfill(' ') << std::right;  // reset
             } else {
                 oss << stringify(std::forward<T>(value));
             }
@@ -258,9 +367,19 @@ void format_argument(std::ostringstream& oss, T&& value, const std::string& form
         case 'E':
             if constexpr (std::is_arithmetic_v<decay_t>) {
                 oss << std::scientific;
-                if (format_char == 'E') oss << std::uppercase;
+                if (spec_info.format_char == 'E') oss << std::uppercase;
+                if (spec_info.precision >= 0) {
+                    oss << std::setprecision(spec_info.precision);
+                }
+                if (spec_info.width > 0) {
+                    oss << std::setw(spec_info.width);
+                    if (spec_info.left_align) {
+                        oss << std::left;
+                    }
+                }
                 oss << static_cast<double>(value);
                 oss.unsetf(std::ios::scientific);
+                oss << std::setfill(' ') << std::right;  // reset
             } else {
                 oss << stringify(std::forward<T>(value));
             }
@@ -276,7 +395,14 @@ void format_argument(std::ostringstream& oss, T&& value, const std::string& form
             
         case 's':
         default:
+            if (spec_info.width > 0) {
+                oss << std::setw(spec_info.width);
+                if (spec_info.left_align) {
+                    oss << std::left;
+                }
+            }
             oss << stringify(std::forward<T>(value));
+            oss << std::right;  // reset
             break;
     }
 }
@@ -287,88 +413,120 @@ void format_argument(std::ostringstream& oss, T&& value, const std::string& form
  * Parses format specifiers and applies appropriate stream formatting.
  * Uses stringstream to handle both basic and custom types seamlessly.
  */
-template<typename... Args>
-std::string stream_printf(const char* format, Args&&... args) {
-    std::ostringstream result;
-    std::string fmt_str(format);
-    std::size_t pos = 0;
-    std::size_t arg_index = 0;
-    
-    // Convert all arguments to a variant-like storage for processing
-    std::vector<std::function<void(std::ostringstream&, const std::string&)>> arg_formatters;
-    (arg_formatters.emplace_back([arg = std::forward<Args>(args)](std::ostringstream& oss, const std::string& spec) {
-        format_argument(oss, arg, spec);
-    }), ...);
-    
-    while (pos < fmt_str.length()) {
-        std::size_t percent_pos = fmt_str.find('%', pos);
-        
-        if (percent_pos == std::string::npos) {
-            // No more format specifiers, append rest of string
-            result << fmt_str.substr(pos);
-            break;
-        }
-        
-        // Append text before format specifier
-        result << fmt_str.substr(pos, percent_pos - pos);
-        
-        // Parse format specifier
-        if (percent_pos + 1 >= fmt_str.length()) {
-            result << '%';  // Trailing % at end
-            break;
-        }
-        
-        char next_char = fmt_str[percent_pos + 1];
-        if (next_char == '%') {
-            result << '%';  // Escaped %%
-            pos = percent_pos + 2;
-            continue;
-        }
-        
-        // Find end of format specifier
-        std::size_t spec_end = percent_pos + 1;
-        std::string spec_chars = "diouxXeEfFgGaAcspn";
-        
-        // Look for precision specifier like %.2f
-        if (next_char == '.') {
-            spec_end++;
-            while (spec_end < fmt_str.length() && std::isdigit(fmt_str[spec_end])) {
-                spec_end++;
+// optimized printf implementation using direct argument processing
+namespace printf_detail {
+    template<std::size_t I, typename... Args>
+    void process_arg_at_index(std::ostringstream& oss, const std::string& format_spec, 
+                              std::size_t target_index, const std::tuple<Args...>& args) {
+        if constexpr (I < sizeof...(Args)) {
+            if (I == target_index) {
+                format_argument(oss, std::get<I>(args), format_spec);
+            } else {
+                process_arg_at_index<I + 1>(oss, format_spec, target_index, args);
             }
         }
-        
-        // Find the actual format character
-        while (spec_end < fmt_str.length() && 
-               spec_chars.find(fmt_str[spec_end]) == std::string::npos) {
-            spec_end++;
-        }
-        
-        if (spec_end >= fmt_str.length()) {
-            result << fmt_str.substr(percent_pos);  // Invalid format, copy as-is
-            break;
-        }
-        
-        spec_end++;  // Include the format character
-        
-        if (arg_index < arg_formatters.size()) {
-            std::string format_spec = fmt_str.substr(percent_pos, spec_end - percent_pos);
-            arg_formatters[arg_index](result, format_spec);
-            arg_index++;
-        } else {
-            result << fmt_str.substr(percent_pos, spec_end - percent_pos);  // No more args
-        }
-        
-        pos = spec_end;
     }
-    
-    return result.str();
+}
+
+template<typename... Args>
+std::string stream_printf(const char* format, Args&&... args) {
+    if constexpr (sizeof...(args) == 0) {
+        // handle zero-argument case efficiently
+        std::string result(format);
+        // just replace %% with %
+        std::size_t pos = 0;
+        while ((pos = result.find("%%", pos)) != std::string::npos) {
+            result.replace(pos, 2, "%");
+            pos += 1;
+        }
+        return result;
+    } else {
+        std::ostringstream result;
+        const char* pos = format;
+        const char* end = format + std::strlen(format);
+        std::size_t arg_index = 0;
+        auto arg_tuple = std::make_tuple(std::forward<Args>(args)...);
+        
+        while (pos < end) {
+            const char* percent_pos = std::find(pos, end, '%');
+            
+            if (percent_pos == end) {
+                // no more format specifiers
+                result.write(pos, end - pos);
+                break;
+            }
+            
+            // append text before format specifier
+            result.write(pos, percent_pos - pos);
+            
+            if (percent_pos + 1 >= end) {
+                result << '%';  // trailing % at end
+                break;
+            }
+            
+            char next_char = percent_pos[1];
+            if (next_char == '%') {
+                result << '%';  // escaped %%
+                pos = percent_pos + 2;
+                continue;
+            }
+            
+            // find end of format specifier
+            const char* spec_end = percent_pos + 1;
+            
+            // skip flags like '0', '-'
+            while (spec_end < end && (*spec_end == '0' || *spec_end == '-')) {
+                spec_end++;
+            }
+            
+            // skip width specifier
+            while (spec_end < end && std::isdigit(*spec_end)) {
+                spec_end++;
+            }
+            
+            // skip precision specifier like %.2f
+            if (spec_end < end && *spec_end == '.') {
+                spec_end++;
+                while (spec_end < end && std::isdigit(*spec_end)) {
+                    spec_end++;
+                }
+            }
+            
+            // find the actual format character
+            while (spec_end < end && 
+                   std::strchr("diouxXeEfFgGaAcspn", *spec_end) == nullptr) {
+                spec_end++;
+            }
+            
+            if (spec_end >= end) {
+                // invalid format, copy as-is
+                result.write(percent_pos, end - percent_pos);
+                break;
+            }
+            
+            spec_end++;  // include the format character
+            
+            if (arg_index < sizeof...(args)) {
+                std::string format_spec(percent_pos, spec_end - percent_pos);
+                printf_detail::process_arg_at_index<0>(result, format_spec, arg_index, arg_tuple);
+                arg_index++;
+            } else {
+                // no more args, copy format specifier as-is
+                result.write(percent_pos, spec_end - percent_pos);
+            }
+            
+            pos = spec_end;
+        }
+        
+        return result.str();
+    }
 }
 
 // global configuration
 class config {
-    level min_level_ = level::info;
+    std::atomic<level> min_level_{level::info};
     theme theme_ = themes::default_theme;
-    mutable std::mutex mutex_;
+    mutable std::shared_mutex theme_mutex_;  // only for theme access which is less frequent
     
 public:
     static config& instance() {
@@ -376,23 +534,21 @@ public:
         return instance_;
     }
     
-    level min_level() const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return min_level_;
+    level min_level() const noexcept {
+        return min_level_.load(std::memory_order_relaxed);
     }
     
-    void set_level(level l) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        min_level_ = l;
+    void set_level(level l) noexcept {
+        min_level_.store(l, std::memory_order_relaxed);
     }
     
     theme get_theme() const {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::shared_lock<std::shared_mutex> lock(theme_mutex_);
         return theme_;
     }
     
     void set_theme(const theme& t) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::unique_lock<std::shared_mutex> lock(theme_mutex_);
         theme_ = t;
     }
 };
@@ -634,6 +790,30 @@ public:
         : name_(name),
           formatter_(std::make_shared<default_formatter>()),
           sink_(std::make_shared<console_sink>()) {}
+    
+    /**
+     * Create a logger with custom formatter and sink.
+     */
+    logger(std::string_view name, std::shared_ptr<formatter> fmt, std::shared_ptr<sink> sink_ptr)
+        : name_(name),
+          formatter_(std::move(fmt)),
+          sink_(std::move(sink_ptr)) {}
+    
+    /**
+     * Create a logger with custom formatter (uses default console sink).
+     */
+    logger(std::string_view name, std::shared_ptr<formatter> fmt)
+        : name_(name),
+          formatter_(std::move(fmt)),
+          sink_(std::make_shared<console_sink>()) {}
+    
+    /**
+     * Create a logger with custom sink (uses default formatter).
+     */
+    logger(std::string_view name, std::shared_ptr<sink> sink_ptr)
+        : name_(name),
+          formatter_(std::make_shared<default_formatter>()),
+          sink_(std::move(sink_ptr)) {}
     
     /**
      * Create a scoped logger with additional name component.
