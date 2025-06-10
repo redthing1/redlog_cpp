@@ -1,6 +1,7 @@
 .vscode
 .claude
-reference/
+claude/
+CLAUDE*
 
 # Build directories
 build*/

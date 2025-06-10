@@ -106,7 +106,8 @@ struct theme {
     
     // layout configuration
     int source_width = 12;      // fixed width for source names
-    int message_min_width = 35; // minimum width before fields start
+    int message_fixed_width = 44; // fixed width for message field (logrus-style)
+    bool pad_level_text = true;   // pad level text for consistent alignment
 };
 
 namespace themes {
@@ -120,7 +121,8 @@ namespace themes {
         .debug_color = color::none, .pedantic_color = color::none,
         .annoying_color = color::none, .source_color = color::none,
         .message_color = color::none, .field_key_color = color::none,
-        .field_value_color = color::none
+        .field_value_color = color::none,
+        .source_width = 12, .message_fixed_width = 44, .pad_level_text = true
     };
 }
 
@@ -522,6 +524,19 @@ std::string stream_printf(const char* format, Args&&... args) {
     }
 }
 
+// helper for level text alignment
+inline int get_max_level_text_width() {
+    static int cached_width = []() {
+        int max_width = 0;
+        for (int i = 0; i <= static_cast<int>(level::annoying); ++i) {
+            int width = static_cast<int>(level_short_name(static_cast<level>(i)).length());
+            max_width = std::max(max_width, width);
+        }
+        return max_width + 2; // +2 for brackets []
+    }();
+    return cached_width;
+}
+
 // global configuration
 class config {
     std::atomic<level> min_level_{level::info};
@@ -670,21 +685,28 @@ public:
             oss << std::string(std::max(1, padding), ' ');
         }
         
-        // level component
-        std::string level_part = "[" + std::string(level_short_name(entry.level_val)) + "]";
+        // level component with optional padding
+        std::string level_text = std::string(level_short_name(entry.level_val));
+        std::string level_part = "[" + level_text + "]";
+        
+        if (theme_.pad_level_text) {
+            int target_width = detail::get_max_level_text_width();
+            int padding = target_width - static_cast<int>(level_part.length());
+            if (padding > 0) {
+                level_part += std::string(padding, ' ');
+            }
+        }
+        
         oss << detail::colorize(level_part, level_color(entry.level_val)) << " ";
         
-        // message component
-        oss << detail::colorize(entry.message, theme_.message_color);
+        // message component with fixed width (logrus-style)
+        oss << std::left << std::setw(theme_.message_fixed_width) 
+            << detail::colorize(entry.message, theme_.message_color) << std::right;
         
-        // fields component with right alignment
+        // fields component 
         if (!entry.fields.empty()) {
-            // calculate padding for field alignment
-            int current_width = static_cast<int>(entry.source.length() + level_part.length() + entry.message.length()) + 5;
-            int padding = std::max(4, theme_.message_min_width - current_width);
-            oss << std::string(padding, ' ');
+            oss << " ";
             
-            // output fields
             bool first = true;
             for (const auto& f : entry.fields.fields()) {
                 if (!first) oss << " ";

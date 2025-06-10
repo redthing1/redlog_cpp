@@ -26,7 +26,7 @@ redlog::theme create_cyberpunk_theme() {
     cyberpunk.field_key_color = redlog::color::bright_cyan;
     cyberpunk.field_value_color = redlog::color::white;
     cyberpunk.source_width = 12;
-    cyberpunk.message_min_width = 50;
+    cyberpunk.message_fixed_width = 50;
     return cyberpunk;
 }
 
@@ -34,7 +34,7 @@ redlog::theme create_cyberpunk_theme() {
 redlog::theme create_monochrome_theme() {
     redlog::theme mono = redlog::themes::plain;
     mono.source_width = 8;
-    mono.message_min_width = 30;
+    mono.message_fixed_width = 30;
     return mono;
 }
 
@@ -55,7 +55,7 @@ redlog::theme create_retro_green_theme() {
     retro.field_key_color = redlog::color::bright_green;
     retro.field_value_color = redlog::color::green;
     retro.source_width = 16;
-    retro.message_min_width = 40;
+    retro.message_fixed_width = 40;
     return retro;
 }
 
@@ -76,7 +76,7 @@ redlog::theme create_accessibility_theme() {
     accessible.field_key_color = redlog::color::white;
     accessible.field_value_color = redlog::color::white;
     accessible.source_width = 20;
-    accessible.message_min_width = 60;
+    accessible.message_fixed_width = 60;
     return accessible;
 }
 
@@ -481,7 +481,7 @@ void demonstrate_custom_theme() {
     high_contrast.field_key_color = redlog::color::yellow;
     high_contrast.field_value_color = redlog::color::green;
     high_contrast.source_width = 15;
-    high_contrast.message_min_width = 40;
+    high_contrast.message_fixed_width = 40;
     
     redlog::theme original_theme = redlog::get_theme();
     redlog::set_theme(high_contrast);
