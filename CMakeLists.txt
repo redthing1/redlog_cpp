@@ -101,3 +101,34 @@ export(EXPORT redlogTargets
 
 # Register package in user package registry
 export(PACKAGE redlog)
+
+# Optional clang-format integration
+find_program(CLANG_FORMAT_EXE NAMES "clang-format")
+if(CLANG_FORMAT_EXE)
+    # Collect all source files for formatting
+    file(GLOB_RECURSE ALL_SOURCE_FILES 
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp
+    )
+    
+    # Add format target
+    add_custom_target(format
+        COMMAND ${CLANG_FORMAT_EXE} -i ${ALL_SOURCE_FILES}
+        COMMENT "Formatting code with clang-format"
+        VERBATIM
+    )
+    
+    # Add format-check target (doesn't modify files)
+    add_custom_target(format-check
+        COMMAND ${CLANG_FORMAT_EXE} --dry-run --Werror ${ALL_SOURCE_FILES}
+        COMMENT "Checking code formatting with clang-format"
+        VERBATIM
+    )
+    
+    message(STATUS "clang-format found: ${CLANG_FORMAT_EXE}")
+    message(STATUS "  - Run 'make format' to format code")
+    message(STATUS "  - Run 'make format-check' to check formatting")
+else()
+    message(STATUS "clang-format not found - formatting targets not available")
+endif()
