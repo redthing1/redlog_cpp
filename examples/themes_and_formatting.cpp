@@ -316,15 +316,15 @@ public:
     // Source component
     if (!entry.source.empty()) {
       std::string source_part = entry.source;
-      oss << redlog::detail::colorize(source_part, theme_.source_color) << " ";
+      oss << redlog::detail::colorize(source_part, theme_.source_color, redlog::color::none) << " ";
     }
 
     // Level component
     std::string level_part = std::string(redlog::level_short_name(entry.level_val));
-    oss << redlog::detail::colorize(level_part, level_color(entry.level_val)) << ": ";
+    oss << redlog::detail::colorize(level_part, level_color(entry.level_val), redlog::color::none) << ": ";
 
     // Message
-    oss << redlog::detail::colorize(entry.message, theme_.message_color);
+    oss << redlog::detail::colorize(entry.message, theme_.message_color, redlog::color::none);
 
     // Fields
     if (!entry.fields.empty()) {
@@ -335,8 +335,8 @@ public:
           oss << ", ";
         }
         first = false;
-        oss << redlog::detail::colorize(f.key, theme_.field_key_color) << "="
-            << redlog::detail::colorize(f.value, theme_.field_value_color);
+        oss << redlog::detail::colorize(f.key, theme_.field_key_color, redlog::color::none) << "="
+            << redlog::detail::colorize(f.value, theme_.field_value_color, redlog::color::none);
       }
       oss << "]";
     }

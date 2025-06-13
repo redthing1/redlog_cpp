@@ -69,6 +69,7 @@ constexpr std::string_view level_short_name(level l) noexcept {
 // ansi color codes
 enum class color : int {
   none = 0,
+  // foreground colors
   red = 31,
   green = 32,
   yellow = 33,
@@ -76,12 +77,30 @@ enum class color : int {
   magenta = 35,
   cyan = 36,
   white = 37,
+  bright_black = 90,
   bright_red = 91,
   bright_green = 92,
   bright_yellow = 93,
   bright_blue = 94,
   bright_magenta = 95,
-  bright_cyan = 96
+  bright_cyan = 96,
+  bright_white = 97,
+  // background colors
+  on_red = 41,
+  on_green = 42,
+  on_yellow = 43,
+  on_blue = 44,
+  on_magenta = 45,
+  on_cyan = 46,
+  on_white = 47,
+  on_grey = 100,
+  on_bright_red = 101,
+  on_bright_green = 102,
+  on_bright_yellow = 103,
+  on_bright_blue = 104,
+  on_bright_magenta = 105,
+  on_bright_cyan = 106,
+  on_bright_white = 107
 };
 
 /**
@@ -91,7 +110,7 @@ enum class color : int {
  * as well as formatting layout parameters.
  */
 struct theme {
-  // colors for each log level
+  // foreground colors
   color critical_color = color::bright_magenta;
   color error_color = color::red;
   color warn_color = color::yellow;
@@ -102,8 +121,20 @@ struct theme {
   color pedantic_color = color::bright_cyan;
   color annoying_color = color::bright_cyan;
 
+  // background colors
+  color critical_bg_color = color::none;
+  color error_bg_color = color::none;
+  color warn_bg_color = color::none;
+  color info_bg_color = color::none;
+  color verbose_bg_color = color::none;
+  color trace_bg_color = color::none;
+  color debug_bg_color = color::none;
+  color pedantic_bg_color = color::none;
+  color annoying_bg_color = color::none;
+
   // colors for message components
   color source_color = color::cyan;
+  color source_bg_color = color::none;
   color message_color = color::white;
   color field_key_color = color::bright_cyan;
   color field_value_color = color::white;
@@ -128,10 +159,50 @@ inline constexpr theme plain{
     .debug_color = color::none,
     .pedantic_color = color::none,
     .annoying_color = color::none,
+    .critical_bg_color = color::none,
+    .error_bg_color = color::none,
+    .warn_bg_color = color::none,
+    .info_bg_color = color::none,
+    .verbose_bg_color = color::none,
+    .trace_bg_color = color::none,
+    .debug_bg_color = color::none,
+    .pedantic_bg_color = color::none,
+    .annoying_bg_color = color::none,
     .source_color = color::none,
+    .source_bg_color = color::none,
     .message_color = color::none,
     .field_key_color = color::none,
     .field_value_color = color::none,
+    .source_width = 12,
+    .message_fixed_width = 44,
+    .pad_level_text = true
+};
+
+// minlog-inspired theme with grey backgrounds for level indicators
+inline constexpr theme minlog{
+    .critical_color = color::bright_magenta,
+    .error_color = color::red,
+    .warn_color = color::yellow,
+    .info_color = color::green,
+    .verbose_color = color::blue,
+    .trace_color = color::white,
+    .debug_color = color::bright_black,
+    .pedantic_color = color::bright_black,
+    .annoying_color = color::bright_black,
+    .critical_bg_color = color::on_grey,
+    .error_bg_color = color::on_grey,
+    .warn_bg_color = color::on_grey,
+    .info_bg_color = color::on_grey,
+    .verbose_bg_color = color::on_grey,
+    .trace_bg_color = color::on_grey,
+    .debug_bg_color = color::none,
+    .pedantic_bg_color = color::none,
+    .annoying_bg_color = color::none,
+    .source_color = color::bright_black,
+    .source_bg_color = color::on_grey,
+    .message_color = color::white,
+    .field_key_color = color::bright_cyan,
+    .field_value_color = color::white,
     .source_width = 12,
     .message_fixed_width = 44,
     .pad_level_text = true
@@ -155,11 +226,33 @@ inline bool should_use_color() noexcept {
 }
 
 // simple ansi color formatting
-inline std::string colorize(std::string_view text, color c) {
-  if (!should_use_color() || c == color::none) {
+inline std::string colorize(std::string_view text, color fg_color, color bg_color = color::none) {
+  if (!should_use_color() || (fg_color == color::none && bg_color == color::none)) {
     return std::string(text);
   }
-  return "\033[" + std::to_string(static_cast<int>(c)) + "m" + std::string(text) + "\033[0m";
+
+  std::string escape_seq = "\033[";
+  bool has_codes = false;
+
+  if (fg_color != color::none) {
+    escape_seq += std::to_string(static_cast<int>(fg_color));
+    has_codes = true;
+  }
+
+  if (bg_color != color::none) {
+    if (has_codes) {
+      escape_seq += ";";
+    }
+    escape_seq += std::to_string(static_cast<int>(bg_color));
+    has_codes = true;
+  }
+
+  if (!has_codes) {
+    return std::string(text);
+  }
+
+  escape_seq += "m";
+  return escape_seq + std::string(text) + "\033[0m";
 }
 
 // SFINAE helpers for type detection
@@ -685,6 +778,31 @@ class default_formatter : public formatter {
     }
   }
 
+  color level_bg_color(level l) const {
+    switch (l) {
+    case level::critical:
+      return theme_.critical_bg_color;
+    case level::error:
+      return theme_.error_bg_color;
+    case level::warn:
+      return theme_.warn_bg_color;
+    case level::info:
+      return theme_.info_bg_color;
+    case level::verbose:
+      return theme_.verbose_bg_color;
+    case level::trace:
+      return theme_.trace_bg_color;
+    case level::debug:
+      return theme_.debug_bg_color;
+    case level::pedantic:
+      return theme_.pedantic_bg_color;
+    case level::annoying:
+      return theme_.annoying_bg_color;
+    default:
+      return color::none;
+    }
+  }
+
 public:
   default_formatter() : theme_(detail::config::instance().get_theme()) {}
   explicit default_formatter(const theme& t) : theme_(t) {}
@@ -695,7 +813,7 @@ public:
     // source component with fixed width padding
     if (!entry.source.empty()) {
       std::string source_part = "[" + entry.source + "]";
-      oss << detail::colorize(source_part, theme_.source_color);
+      oss << detail::colorize(source_part, theme_.source_color, theme_.source_bg_color);
 
       int padding = theme_.source_width - static_cast<int>(source_part.length());
       oss << std::string(std::max(1, padding), ' ');
@@ -713,11 +831,11 @@ public:
       }
     }
 
-    oss << detail::colorize(level_part, level_color(entry.level_val)) << " ";
+    oss << detail::colorize(level_part, level_color(entry.level_val), level_bg_color(entry.level_val)) << " ";
 
     // message component with fixed width (logrus-style)
-    oss << std::left << std::setw(theme_.message_fixed_width) << detail::colorize(entry.message, theme_.message_color)
-        << std::right;
+    oss << std::left << std::setw(theme_.message_fixed_width)
+        << detail::colorize(entry.message, theme_.message_color, color::none) << std::right;
 
     // fields component
     if (!entry.fields.empty()) {
@@ -730,8 +848,8 @@ public:
         }
         first = false;
 
-        oss << detail::colorize(f.key, theme_.field_key_color) << "="
-            << detail::colorize(f.value, theme_.field_value_color);
+        oss << detail::colorize(f.key, theme_.field_key_color, color::none) << "="
+            << detail::colorize(f.value, theme_.field_value_color, color::none);
       }
     }
 
