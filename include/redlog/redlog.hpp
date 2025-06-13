@@ -93,7 +93,7 @@ enum class color : int {
   on_magenta = 45,
   on_cyan = 46,
   on_white = 47,
-  on_grey = 100,
+  on_gray = 100,
   on_bright_red = 101,
   on_bright_green = 102,
   on_bright_yellow = 103,
@@ -178,7 +178,7 @@ inline constexpr theme plain{
     .pad_level_text = true
 };
 
-// minlog-inspired theme with grey backgrounds for level indicators
+// minlog-inspired theme with gray backgrounds for level indicators
 inline constexpr theme minlog{
     .critical_color = color::bright_magenta,
     .error_color = color::red,
@@ -189,17 +189,17 @@ inline constexpr theme minlog{
     .debug_color = color::bright_black,
     .pedantic_color = color::bright_black,
     .annoying_color = color::bright_black,
-    .critical_bg_color = color::on_grey,
-    .error_bg_color = color::on_grey,
-    .warn_bg_color = color::on_grey,
-    .info_bg_color = color::on_grey,
-    .verbose_bg_color = color::on_grey,
-    .trace_bg_color = color::on_grey,
+    .critical_bg_color = color::on_gray,
+    .error_bg_color = color::on_gray,
+    .warn_bg_color = color::on_gray,
+    .info_bg_color = color::on_gray,
+    .verbose_bg_color = color::on_gray,
+    .trace_bg_color = color::on_gray,
     .debug_bg_color = color::none,
     .pedantic_bg_color = color::none,
     .annoying_bg_color = color::none,
     .source_color = color::bright_black,
-    .source_bg_color = color::on_grey,
+    .source_bg_color = color::on_gray,
     .message_color = color::white,
     .field_key_color = color::bright_cyan,
     .field_value_color = color::white,
