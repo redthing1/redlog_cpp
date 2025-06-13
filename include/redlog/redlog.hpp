@@ -117,9 +117,9 @@ struct theme {
   color info_color = color::green;
   color verbose_color = color::blue;
   color trace_color = color::white;
-  color debug_color = color::bright_cyan;
-  color pedantic_color = color::bright_cyan;
-  color annoying_color = color::bright_cyan;
+  color debug_color = color::bright_black;
+  color pedantic_color = color::bright_black;
+  color annoying_color = color::bright_black;
 
   // background colors
   color critical_bg_color = color::none;
@@ -173,36 +173,6 @@ inline constexpr theme plain{
     .message_color = color::none,
     .field_key_color = color::none,
     .field_value_color = color::none,
-    .source_width = 12,
-    .message_fixed_width = 44,
-    .pad_level_text = true
-};
-
-// minlog-inspired theme with gray backgrounds for level indicators
-inline constexpr theme minlog{
-    .critical_color = color::bright_magenta,
-    .error_color = color::red,
-    .warn_color = color::yellow,
-    .info_color = color::green,
-    .verbose_color = color::blue,
-    .trace_color = color::white,
-    .debug_color = color::bright_black,
-    .pedantic_color = color::bright_black,
-    .annoying_color = color::bright_black,
-    .critical_bg_color = color::on_gray,
-    .error_bg_color = color::on_gray,
-    .warn_bg_color = color::on_gray,
-    .info_bg_color = color::on_gray,
-    .verbose_bg_color = color::on_gray,
-    .trace_bg_color = color::on_gray,
-    .debug_bg_color = color::none,
-    .pedantic_bg_color = color::none,
-    .annoying_bg_color = color::none,
-    .source_color = color::bright_black,
-    .source_bg_color = color::on_gray,
-    .message_color = color::white,
-    .field_key_color = color::bright_cyan,
-    .field_value_color = color::white,
     .source_width = 12,
     .message_fixed_width = 44,
     .pad_level_text = true
