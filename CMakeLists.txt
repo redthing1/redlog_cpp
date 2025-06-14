@@ -113,22 +113,22 @@ if(CLANG_FORMAT_EXE)
     )
     
     # Add format target
-    add_custom_target(format
+    add_custom_target(redlog-format
         COMMAND ${CLANG_FORMAT_EXE} -i ${ALL_SOURCE_FILES}
-        COMMENT "Formatting code with clang-format"
+        COMMENT "Formatting redlog code with clang-format"
         VERBATIM
     )
     
-    # Add format-check target (doesn't modify files)
-    add_custom_target(format-check
+    # Add format-check target
+    add_custom_target(redlog-format-check
         COMMAND ${CLANG_FORMAT_EXE} --dry-run --Werror ${ALL_SOURCE_FILES}
-        COMMENT "Checking code formatting with clang-format"
+        COMMENT "Checking redlog code formatting with clang-format"
         VERBATIM
     )
     
     message(STATUS "clang-format found: ${CLANG_FORMAT_EXE}")
-    message(STATUS "  - Run 'make format' to format code")
-    message(STATUS "  - Run 'make format-check' to check formatting")
+    message(STATUS "  - Run 'make redlog-format' to format redlog code")
+    message(STATUS "  - Run 'make redlog-format-check' to check redlog formatting")
 else()
     message(STATUS "clang-format not found - formatting targets not available")
 endif()
