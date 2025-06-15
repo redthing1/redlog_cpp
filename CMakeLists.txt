@@ -5,8 +5,8 @@ project(redlog
     DESCRIPTION "Modern C++ header-only logging library"
     LANGUAGES CXX)
 
-# Set C++17 as the minimum standard
-set(CMAKE_CXX_STANDARD 17)
+# Set C++20 as the minimum standard
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -21,12 +21,18 @@ target_include_directories(redlog
         $<INSTALL_INTERFACE:include>
 )
 
-# Require C++17
-target_compile_features(redlog INTERFACE cxx_std_17)
+# Require C++20
+target_compile_features(redlog INTERFACE cxx_std_20)
 
-# Platform-specific libraries for TTY detection
+# Platform-specific libraries and definitions
 if(WIN32)
     # Windows doesn't need additional libraries for _isatty
+    # Add Windows compile definitions to prevent macro conflicts
+    target_compile_definitions(redlog INTERFACE
+        NOMINMAX
+        WIN32_LEAN_AND_MEAN
+        _CRT_SECURE_NO_WARNINGS
+    )
 else()
     # Unix-like systems need unistd.h (standard)
 endif()
