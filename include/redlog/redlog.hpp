@@ -655,6 +655,10 @@ struct field {
   std::string value;
 
   template <typename T> field(std::string_view k, T&& v) : key(k), value(detail::stringify(std::forward<T>(v))) {}
+
+  template <typename T>
+  field(std::string_view k, const char* format_spec, T&& v)
+      : key(k), value(detail::stream_printf(format_spec, std::forward<T>(v))) {}
 };
 
 /**
