@@ -132,9 +132,9 @@ if(CLANG_FORMAT_EXE)
         VERBATIM
     )
     
-    message(STATUS "clang-format found: ${CLANG_FORMAT_EXE}")
-    message(STATUS "  - Run 'make redlog-format' to format redlog code")
-    message(STATUS "  - Run 'make redlog-format-check' to check redlog formatting")
+    # message(STATUS "clang-format found: ${CLANG_FORMAT_EXE}")
+    # message(STATUS "  - Run 'make redlog-format' to format redlog code")
+    # message(STATUS "  - Run 'make redlog-format-check' to check redlog formatting")
 else()
     message(STATUS "clang-format not found - formatting targets not available")
 endif()
