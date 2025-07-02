@@ -3,7 +3,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
-#include <redlog/redlog.hpp>
+#include <redlog.hpp>
 #include <sstream>
 #include <thread>
 

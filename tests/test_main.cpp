@@ -4,7 +4,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
-#include <redlog/redlog.hpp>
+#include <redlog.hpp>
 #include <sstream>
 #include <thread>
 #include <vector>

@@ -1,5 +1,5 @@
 #include <chrono>
-#include <redlog/redlog.hpp>
+#include <redlog.hpp>
 #include <stdexcept>
 #include <thread>
 #include <vector>

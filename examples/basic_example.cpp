@@ -1,6 +1,6 @@
 #include <chrono>
 #include <iostream>
-#include <redlog/redlog.hpp>
+#include <redlog.hpp>
 #include <thread>
 
 int main() {

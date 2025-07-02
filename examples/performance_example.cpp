@@ -1,6 +1,6 @@
 #include <chrono>
 #include <random>
-#include <redlog/redlog.hpp>
+#include <redlog.hpp>
 #include <vector>
 
 // Benchmark utility
