@@ -15,7 +15,7 @@ a modern c++ header-only logging library
 ## quick start
 
 ```cpp
-#include <redlog/redlog.hpp>
+#include <redlog.hpp>
 
 int main() {
     auto log = redlog::get_logger("app");
@@ -109,7 +109,7 @@ target_link_libraries(your_target PRIVATE redlog::redlog)
 
 ### header-only
 
-copy `include/redlog/redlog.hpp` to your project and include it directly:
+copy `include/redlog.hpp` to your project and include it directly:
 
 ```cpp
 #include "redlog.hpp"
