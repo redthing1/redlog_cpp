@@ -9,8 +9,6 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
-#include <mutex>
-#include <shared_mutex>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -620,7 +618,6 @@ inline int get_max_level_text_width() {
 class config {
   std::atomic<level> min_level_{level::info};
   theme theme_ = themes::default_theme;
-  mutable std::shared_mutex theme_mutex_; // only for theme access which is less frequent
 
 public:
   static config& instance() {
@@ -632,15 +629,9 @@ public:
 
   void set_level(level l) noexcept { min_level_.store(l, std::memory_order_relaxed); }
 
-  theme get_theme() const {
-    std::shared_lock<std::shared_mutex> lock(theme_mutex_);
-    return theme_;
-  }
+  theme get_theme() const { return theme_; }
 
-  void set_theme(const theme& t) {
-    std::unique_lock<std::shared_mutex> lock(theme_mutex_);
-    theme_ = t;
-  }
+  void set_theme(const theme& t) { theme_ = t; }
 };
 
 } // namespace detail
