@@ -46,8 +46,8 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif()
 
 # option to build examples and tests
-option(REDLOG_BUILD_EXAMPLES "Build redlog examples" ON)
-option(REDLOG_BUILD_TESTS "Build redlog tests" ON)
+option(REDLOG_BUILD_EXAMPLES "Build redlog examples" OFF)
+option(REDLOG_BUILD_TESTS "Build redlog tests" OFF)
 
 # build examples if requested
 if(REDLOG_BUILD_EXAMPLES)
